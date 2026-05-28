@@ -3,13 +3,15 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Hump Yard Market Intelligence API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: search
+    description: Market intelligence search operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /search/country:
+    post:
+      operationId: searchCountry
+      tags: [search]
+      summary: Search a country for hump yard intelligence
+      description: Uses Exa web search to find hump/classification yard data for a country
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CountrySearchInput"
+      responses:
+        "200":
+          description: Country intelligence result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CountryResult"
+        "500":
+          description: Search error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /search/countries:
+    get:
+      operationId: getCountries
+      tags: [search]
+      summary: Get list of countries for Global Radar scan
+      description: Returns the pre-loaded list of countries to scan in Global Radar mode
+      responses:
+        "200":
+          description: Country list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CountryList"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +77,113 @@ components:
       required:
         - status
 
+    CountrySearchInput:
+      type: object
+      required:
+        - country
+      properties:
+        country:
+          type: string
+          description: Country name to search
+
+    SourceLink:
+      type: object
+      required:
+        - url
+        - title
+      properties:
+        url:
+          type: string
+        title:
+          type: string
+        publishedDate:
+          type: ["string", "null"]
+        snippet:
+          type: ["string", "null"]
+
+    CountryResult:
+      type: object
+      required:
+        - country
+        - verdict
+        - confidence
+        - tier
+        - summary
+        - sources
+        - yards
+        - operator
+        - lastModernization
+        - procurementPortal
+        - contactEntryPoint
+        - procurementTenders
+        - technicalContacts
+      properties:
+        country:
+          type: string
+        verdict:
+          type: string
+          enum: [Yes, No, Uncertain]
+          description: Whether the country has active hump yards
+        confidence:
+          type: string
+          enum: [High, Medium, Low]
+          description: Confidence level in the result
+        tier:
+          type: string
+          enum: [A, B, C, D]
+          description: "A=active modernization, B=active humps low spend, C=legacy base, D=no humps"
+        summary:
+          type: string
+          description: One-paragraph intelligence summary
+        yards:
+          type: array
+          items:
+            type: string
+          description: Names of specific hump yards found
+        operator:
+          type: ["string", "null"]
+          description: Railway authority / operator name
+        lastModernization:
+          type: ["string", "null"]
+          description: Last known modernization date or project
+        procurementPortal:
+          type: ["string", "null"]
+          description: URL to procurement portal if found
+        contactEntryPoint:
+          type: ["string", "null"]
+          description: Named procurement contacts or railway authority directors
+        procurementTenders:
+          type: array
+          items:
+            type: string
+          description: Recent procurement or modernization tenders found
+        technicalContacts:
+          type: array
+          items:
+            type: string
+          description: Named technical decision-makers found
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceLink"
+        error:
+          type: ["string", "null"]
+          description: Error message if search partially failed
+
+    CountryList:
+      type: object
+      required:
+        - countries
+      properties:
+        countries:
+          type: array
+          items:
+            type: string
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string

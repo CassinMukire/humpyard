@@ -5,60 +5,10 @@
  * Hump Yard Market Intelligence API
  * OpenAPI spec version: 0.1.0
  */
-export interface HealthStatus {
-  status: string;
-}
-
-export interface CountrySearchInput {
-  /** Country name to search */
-  country: string;
-}
-
-export interface SourceLink {
-  url: string;
-  title: string;
-  /** @nullable */
-  publishedDate?: string | null;
-  /** @nullable */
-  snippet?: string | null;
-}
-
-/**
- * Whether the country has active hump yards
- */
-export type CountryResultVerdict = typeof CountryResultVerdict[keyof typeof CountryResultVerdict];
-
-
-export const CountryResultVerdict = {
-  Yes: 'Yes',
-  No: 'No',
-  Uncertain: 'Uncertain',
-} as const;
-
-/**
- * Confidence level in the result
- */
-export type CountryResultConfidence = typeof CountryResultConfidence[keyof typeof CountryResultConfidence];
-
-
-export const CountryResultConfidence = {
-  High: 'High',
-  Medium: 'Medium',
-  Low: 'Low',
-} as const;
-
-/**
- * A=active modernization, B=active humps low spend, C=legacy base, D=no humps
- */
-export type CountryResultTier = typeof CountryResultTier[keyof typeof CountryResultTier];
-
-
-export const CountryResultTier = {
-  A: 'A',
-  B: 'B',
-  C: 'C',
-  D: 'D',
-} as const;
+import type { CountryResultConfidence } from './countryResultConfidence';
+import type { CountryResultTier } from './countryResultTier';
+import type { CountryResultVerdict } from './countryResultVerdict';
+import type { SourceLink } from './sourceLink';
 
 export interface CountryResult {
   country: string;
@@ -103,12 +53,3 @@ export interface CountryResult {
      */
   error?: string | null;
 }
-
-export interface CountryList {
-  countries: string[];
-}
-
-export interface ErrorResponse {
-  error: string;
-}
-
