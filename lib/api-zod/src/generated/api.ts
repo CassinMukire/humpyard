@@ -38,6 +38,14 @@ export const SearchCountryResponse = zod.object({
   "contactEntryPoint": zod.string().nullable().describe('Named procurement contacts or railway authority directors'),
   "procurementTenders": zod.array(zod.string()).describe('Recent procurement or modernization tenders found'),
   "technicalContacts": zod.array(zod.string()).describe('Named technical decision-makers found'),
+  "keyContacts": zod.array(zod.object({
+  "name": zod.string().nullish().describe('Full name if found, null if only role is known'),
+  "title": zod.string().describe('Role or job title'),
+  "organisation": zod.string().describe('Railway authority or ministry'),
+  "whyRelevant": zod.string().describe('One-line explanation of why this person matters for BD'),
+  "linkedinUrl": zod.string().describe('Pre-filled LinkedIn people search URL'),
+  "confidence": zod.enum(['Named & verified', 'Role known, name uncertain', 'Role inferred'])
+})).describe('Structured key contacts with LinkedIn URLs'),
   "sources": zod.array(zod.object({
   "url": zod.string(),
   "title": zod.string(),
@@ -54,6 +62,24 @@ export const SearchCountryResponse = zod.object({
  */
 export const GetCountriesResponse = zod.object({
   "countries": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Generate a personalised outreach message for a contact
+ */
+export const GenerateOutreachBody = zod.object({
+  "contactName": zod.string().nullish(),
+  "title": zod.string(),
+  "organisation": zod.string(),
+  "country": zod.string(),
+  "yards": zod.array(zod.string()).optional(),
+  "language": zod.string().optional().describe('Language code: \'en\' (default), \'de\', \'fr\', \'ru\', \'zh\', \'pl\', etc.')
+})
+
+export const GenerateOutreachResponse = zod.object({
+  "message": zod.string(),
+  "language": zod.string()
 })
 
 

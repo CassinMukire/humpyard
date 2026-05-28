@@ -24,7 +24,9 @@ import type {
   CountryResult,
   CountrySearchInput,
   ErrorResponse,
-  HealthStatus
+  HealthStatus,
+  OutreachInput,
+  OutreachResult
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -266,4 +268,75 @@ export function useGetCountries<TData = Awaited<ReturnType<typeof getCountries>>
 
 
 
+
+export const getGenerateOutreachUrl = () => {
+
+
+
+
+  return `/api/search/outreach`
+}
+
+/**
+ * @summary Generate a personalised outreach message for a contact
+ */
+export const generateOutreach = async (outreachInput: OutreachInput, options?: RequestInit): Promise<OutreachResult> => {
+
+  return customFetch<OutreachResult>(getGenerateOutreachUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      outreachInput,)
+  }
+);}
+
+
+
+
+export const getGenerateOutreachMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateOutreach>>, TError,{data: BodyType<OutreachInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateOutreach>>, TError,{data: BodyType<OutreachInput>}, TContext> => {
+
+const mutationKey = ['generateOutreach'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateOutreach>>, {data: BodyType<OutreachInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateOutreach(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateOutreachMutationResult = NonNullable<Awaited<ReturnType<typeof generateOutreach>>>
+    export type GenerateOutreachMutationBody = BodyType<OutreachInput>
+    export type GenerateOutreachMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Generate a personalised outreach message for a contact
+ */
+export const useGenerateOutreach = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateOutreach>>, TError,{data: BodyType<OutreachInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateOutreach>>,
+        TError,
+        {data: BodyType<OutreachInput>},
+        TContext
+      > => {
+      return useMutation(getGenerateOutreachMutationOptions(options));
+    }
 

@@ -23,6 +23,32 @@ export interface SourceLink {
   snippet?: string | null;
 }
 
+export type KeyContactConfidence = typeof KeyContactConfidence[keyof typeof KeyContactConfidence];
+
+
+export const KeyContactConfidence = {
+  'Named_&_verified': 'Named & verified',
+  'Role_known,_name_uncertain': 'Role known, name uncertain',
+  Role_inferred: 'Role inferred',
+} as const;
+
+export interface KeyContact {
+  /**
+     * Full name if found, null if only role is known
+     * @nullable
+     */
+  name?: string | null;
+  /** Role or job title */
+  title: string;
+  /** Railway authority or ministry */
+  organisation: string;
+  /** One-line explanation of why this person matters for BD */
+  whyRelevant: string;
+  /** Pre-filled LinkedIn people search URL */
+  linkedinUrl: string;
+  confidence: KeyContactConfidence;
+}
+
 /**
  * Whether the country has active hump yards
  */
@@ -96,6 +122,8 @@ export interface CountryResult {
   procurementTenders: string[];
   /** Named technical decision-makers found */
   technicalContacts: string[];
+  /** Structured key contacts with LinkedIn URLs */
+  keyContacts: KeyContact[];
   sources: SourceLink[];
   /**
      * Error message if search partially failed
@@ -106,6 +134,22 @@ export interface CountryResult {
 
 export interface CountryList {
   countries: string[];
+}
+
+export interface OutreachInput {
+  /** @nullable */
+  contactName?: string | null;
+  title: string;
+  organisation: string;
+  country: string;
+  yards?: string[];
+  /** Language code: 'en' (default), 'de', 'fr', 'ru', 'zh', 'pl', etc. */
+  language?: string;
+}
+
+export interface OutreachResult {
+  message: string;
+  language: string;
 }
 
 export interface ErrorResponse {

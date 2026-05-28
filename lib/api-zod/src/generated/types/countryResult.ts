@@ -8,6 +8,7 @@
 import type { CountryResultConfidence } from './countryResultConfidence';
 import type { CountryResultTier } from './countryResultTier';
 import type { CountryResultVerdict } from './countryResultVerdict';
+import type { KeyContact } from './keyContact';
 import type { SourceLink } from './sourceLink';
 
 export interface CountryResult {
@@ -46,6 +47,8 @@ export interface CountryResult {
   procurementTenders: string[];
   /** Named technical decision-makers found */
   technicalContacts: string[];
+  /** Structured key contacts with LinkedIn URLs */
+  keyContacts: KeyContact[];
   sources: SourceLink[];
   /**
      * Error message if search partially failed

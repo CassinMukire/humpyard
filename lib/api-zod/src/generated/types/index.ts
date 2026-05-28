@@ -14,4 +14,8 @@ export * from './countryResultVerdict';
 export * from './countrySearchInput';
 export * from './errorResponse';
 export * from './healthStatus';
+export * from './keyContact';
+export * from './keyContactConfidence';
+export * from './outreachInput';
+export * from './outreachResult';
 export * from './sourceLink';

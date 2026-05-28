@@ -1,0 +1,18 @@
+Add to the existing Hump Yard Intel tool:
+
+For every country result (especially Tier A and B), add a "Key Contacts" section that searches for and displays named decision-makers at the responsible railway authority. Each contact card should show:
+
+Full name
+Title / role (e.g. "Director of Infrastructure", "Head of Capital Procurement", "VP Operations")
+Organisation (the state railway or ministry)
+Why relevant (one line — e.g. "controls marshalling yard capex budget")
+LinkedIn search URL — auto-generate a pre-filled LinkedIn people search link like https://www.linkedin.com/search/results/people/?keywords=[name]+[organisation] so the sales rep can click straight through
+Confidence (Named & verified / Role known, name uncertain / Role inferred)
+
+The search should look for: "[country railway authority] infrastructure director", "[railway name] procurement hump yard", "[railway name] CTO OR COO OR VP infrastructure", "[ministry of transport country] railway director general". Cross-reference with any procurement documents found — tender notices usually name a contact person.
+Display the contacts in a collapsible panel under each country card. On the Global Radar view, Tier A countries should auto-expand their contact panels. Add a "Copy LinkedIn URL" button on each contact card. Include a disclaimer: "Verify on LinkedIn before outreach — roles change."
+Also add a "Generate outreach note" button per contact that produces a 3-line personalised cold message referencing: the specific yard in their country, the problem being solved (manual brake shoes / diesel shunters), and DECEL's reference in Sweden/Kazakhstan. Output the message in English by default with a toggle for the local language.
+
+
+That last part — the outreach note generator — is where this gets really powerful for your sales rep. They land on the right person's LinkedIn, they already have a contextual opener ready. No generic "I'd like to connect" nonsense.
+One heads up: named contacts for state railways are harder to find than for private companies. The tool will return verified names for maybe 40-50% of countries — for the rest it'll return the role and organisation so the rep knows what title to search for on LinkedIn manually. That's still 10x better than going in blind.
