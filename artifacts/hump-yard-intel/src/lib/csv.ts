@@ -1,4 +1,4 @@
-import { CountryResult } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { CountryResult } from "@workspace/api-client-react";
 
 export function exportToCsv(results: CountryResult[], filename: string) {
   if (results.length === 0) return;
@@ -42,7 +42,7 @@ export function exportToCsv(results: CountryResult[], filename: string) {
     r.procurementTenders.join("; "),
     r.technicalContacts.join("; "),
     r.summary,
-    r.sources.map(s => s.url).join("; "),
+    r.sources.map((s: { url: string }) => s.url).join("; "),
     r.error || ""
   ]);
 

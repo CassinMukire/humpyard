@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchCountry, useGetCountries } from "@workspace/api-client-react";
-import { CountryResult } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { CountryResult } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent } from "@/components/ui/card";

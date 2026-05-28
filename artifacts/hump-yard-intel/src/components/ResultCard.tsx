@@ -1,5 +1,5 @@
 import React from "react";
-import { CountryResult } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { CountryResult } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,7 +90,7 @@ export function ResultCard({ result }: ResultCardProps) {
               <h3 className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">Identified Yards</h3>
               {result.yards && result.yards.length > 0 ? (
                 <ul className="space-y-1">
-                  {result.yards.map((yard, i) => (
+                  {result.yards.map((yard: string, i: number) => (
                     <li key={i} className="text-sm flex items-start gap-2">
                       <MapPin className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
                       <span>{yard}</span>
@@ -106,7 +106,7 @@ export function ResultCard({ result }: ResultCardProps) {
               <h3 className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">Recent Tenders</h3>
               {result.procurementTenders && result.procurementTenders.length > 0 ? (
                 <ul className="space-y-1 list-disc list-inside pl-2 text-sm">
-                  {result.procurementTenders.map((tender, i) => (
+                  {result.procurementTenders.map((tender: string, i: number) => (
                     <li key={i} className="text-card-foreground">{tender}</li>
                   ))}
                 </ul>
@@ -169,7 +169,7 @@ export function ResultCard({ result }: ResultCardProps) {
             <h3 className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">Technical Contacts</h3>
             {result.technicalContacts && result.technicalContacts.length > 0 ? (
               <ul className="space-y-1">
-                {result.technicalContacts.map((contact, i) => (
+                {result.technicalContacts.map((contact: string, i: number) => (
                   <li key={i} className="text-sm">{contact}</li>
                 ))}
               </ul>
@@ -185,7 +185,7 @@ export function ResultCard({ result }: ResultCardProps) {
         <div className="border-t border-border bg-card-border/20 p-4 px-6">
           <h3 className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-3">Intelligence Sources</h3>
           <ul className="space-y-2">
-            {result.sources.map((source, i) => (
+            {result.sources.map((source: { url: string; title: string; publishedDate: string | null; snippet: string | null }, i: number) => (
               <li key={i} className="text-xs">
                 <a 
                   href={source.url} 
