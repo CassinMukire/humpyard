@@ -70,47 +70,213 @@ const OPERATOR_KEY_ROLES: Record<string, Array<{ title: string; whyRelevant: str
   "DB Netz AG / Deutsche Bahn": [
     { title: "Head of Freight Infrastructure", whyRelevant: "Controls marshalling yard capex budget across DB Cargo network" },
     { title: "Director of Technical Procurement", whyRelevant: "Approves retarder system tenders and supplier qualification" },
+    { title: "Chief Engineer, Freight Operations", whyRelevant: "Technical specification authority for hump yard systems" },
   ],
   "RZhD (Russian Railways)": [
     { title: "Deputy Head of Infrastructure", whyRelevant: "Oversees hump yard modernization programme across RZhD network" },
     { title: "Head of Capital Construction", whyRelevant: "Manages procurement for sorting yard automation projects" },
+    { title: "Director of Technical Development", whyRelevant: "Technical authority on retarder and automation specifications" },
   ],
   "China Railway (CR)": [
     { title: "Director of Freight Operations Technology", whyRelevant: "Leads automation of classification yards across CR network" },
     { title: "Chief Engineer, Marshalling Systems", whyRelevant: "Technical authority on hump retarder specification and procurement" },
+    { title: "Head of Infrastructure Procurement", whyRelevant: "Manages tenders for yard equipment across CR network" },
   ],
   "PKP Cargo / PLK": [
     { title: "Director of Infrastructure Investment", whyRelevant: "Manages PKP infrastructure modernization budget" },
     { title: "Head of Procurement, PLK", whyRelevant: "Approves tenders for track and yard equipment" },
+    { title: "Chief Engineer, PLK", whyRelevant: "Technical approver for hump yard safety systems" },
   ],
   "ČD Cargo / SŽDC": [
     { title: "Head of Infrastructure Technology", whyRelevant: "Controls retarder procurement for Czech hump yard network" },
+    { title: "Director of Infrastructure Investment, SŽDC", whyRelevant: "Manages EU co-funded yard modernization projects" },
+  ],
+  "CFR Călători / CFR Marfă": [
+    { title: "Director of Infrastructure, CFR SA", whyRelevant: "Controls Romanian national rail infrastructure investment including marshalling yards" },
+    { title: "Head of Procurement, CFR", whyRelevant: "Runs EU-funded tenders for track and yard equipment" },
+    { title: "Chief Engineer, CFR Marfă", whyRelevant: "Technical authority on freight yard systems and retarder specifications" },
   ],
   "MÁV": [
     { title: "Director of Infrastructure Development", whyRelevant: "Manages EU-funded MÁV yard modernization programme" },
+    { title: "Head of Procurement, MÁV", whyRelevant: "Approves capital tenders for yard equipment" },
   ],
   "ÖBB": [
     { title: "Head of Rail Cargo Infrastructure", whyRelevant: "Oversees ÖBB classification yard investment" },
+    { title: "Director of Technical Procurement, ÖBB", whyRelevant: "Manages tenders for safety-critical rail systems" },
   ],
-  "Kazakhstan Temir Zholy (KTZ)": [
-    { title: "VP Infrastructure", whyRelevant: "Controls KTZ hump yard capex — DECEL reference site at Almaty" },
-    { title: "Director of Technical Development", whyRelevant: "Leads sorting yard modernization procurement" },
+  "ZSSK Cargo": [
+    { title: "Director of Infrastructure, ŽSR", whyRelevant: "Controls Slovak rail infrastructure budget including hump yards" },
+    { title: "Head of Technical Operations, ZSSK Cargo", whyRelevant: "Manages freight yard equipment and maintenance programme" },
+  ],
+  "Ukrzaliznytsia": [
+    { title: "Deputy Director, Infrastructure", whyRelevant: "Oversees Ukrzaliznytsia post-war reconstruction and yard modernization" },
+    { title: "Head of Capital Investment, Ukrzaliznytsia", whyRelevant: "Manages international donor-funded rail infrastructure projects" },
+  ],
+  "SNCF / SNCF Réseau": [
+    { title: "Director of Freight Network Operations", whyRelevant: "Manages SNCF Réseau marshalling yard portfolio" },
+    { title: "Head of Infrastructure Procurement, SNCF Réseau", whyRelevant: "Approves capital tenders for network equipment" },
+    { title: "Chief Engineer, Freight Infrastructure", whyRelevant: "Technical specification authority for yard automation" },
+  ],
+  "ProRail / NS": [
+    { title: "Manager Freight Corridors, ProRail", whyRelevant: "Oversees ProRail classification yard operations and investment" },
+    { title: "Director Asset Management, ProRail", whyRelevant: "Controls infrastructure renewal budget including hump facilities" },
+  ],
+  "Infrabel / SNCB": [
+    { title: "Director of Infrastructure, Infrabel", whyRelevant: "Manages Infrabel's marshalling yard asset base" },
+    { title: "Head of Technical Procurement, Infrabel", whyRelevant: "Approves tenders for safety-critical rail infrastructure equipment" },
+  ],
+  "Trafikverket / Green Cargo": [
+    { title: "Head of Freight Infrastructure, Trafikverket", whyRelevant: "Reference operator — Hallsberg hump yard, DECEL installation" },
+    { title: "Head of Asset Management, Green Cargo", whyRelevant: "Manages Green Cargo freight terminal and yard investment" },
+  ],
+  "Finrail / VR": [
+    { title: "Director of Infrastructure, Väylävirasto", whyRelevant: "Controls Finnish Transport Infrastructure Agency rail investment" },
+    { title: "Head of Freight Operations, VR Transpoint", whyRelevant: "Manages VR marshalling yard operations and modernization" },
+  ],
+  "Bane NOR / CargoNet": [
+    { title: "Director of Asset Management, Bane NOR", whyRelevant: "Oversees Norwegian rail infrastructure renewal including hump yards" },
+    { title: "Head of Freight Infrastructure, Bane NOR", whyRelevant: "Technical authority for classification yard investments" },
+  ],
+  "Banedanmark / DSB": [
+    { title: "Head of Infrastructure, Banedanmark", whyRelevant: "Controls Danish national rail infrastructure budget" },
+    { title: "Director of Procurement, Banedanmark", whyRelevant: "Manages tenders for rail infrastructure equipment" },
+  ],
+  "SBB / Railcare": [
+    { title: "Head of Infrastructure, SBB Cargo", whyRelevant: "Manages SBB classification yard portfolio" },
+    { title: "Director of Technical Procurement, SBB", whyRelevant: "Approves capital tenders for Swiss rail network equipment" },
+  ],
+  "RFI / Mercitalia": [
+    { title: "Director of Infrastructure, RFI", whyRelevant: "Controls Italian national rail infrastructure investment" },
+    { title: "Head of Procurement, RFI", whyRelevant: "Manages EU-funded tenders for track and yard systems" },
+    { title: "Head of Freight Operations, Mercitalia Rail", whyRelevant: "Oversees Mercitalia marshalling yard operations" },
+  ],
+  "ADIF / Renfe Mercancías": [
+    { title: "Director of Infrastructure, ADIF", whyRelevant: "Controls ADIF's rail infrastructure investment programme" },
+    { title: "Head of Freight Terminal Operations, ADIF", whyRelevant: "Manages classification yard assets across Spain" },
+    { title: "Director of Procurement, ADIF", whyRelevant: "Approves capital tenders for Spanish rail infrastructure" },
+  ],
+  "TCDD": [
+    { title: "Director General of Infrastructure, TCDD", whyRelevant: "Controls TCDD yard modernization budget" },
+    { title: "Head of Technical Procurement, TCDD", whyRelevant: "Manages tenders for rail safety equipment" },
+    { title: "Chief Engineer, TCDD", whyRelevant: "Technical specification authority for hump yard systems" },
   ],
   "Indian Railways": [
     { title: "Executive Director, Track Machines & Monitoring", whyRelevant: "Technical authority for marshalling yard systems across IR" },
     { title: "General Manager, Freight Business Development", whyRelevant: "Oversees classification yard capacity programmes" },
+    { title: "Principal Chief Engineer (Construction)", whyRelevant: "Manages IR infrastructure development including new hump yards" },
   ],
-  "TCDD": [
-    { title: "Director General of Infrastructure", whyRelevant: "Controls TCDD yard modernization budget" },
+  "JR Freight": [
+    { title: "Director of Infrastructure, JR Freight", whyRelevant: "Controls JR Freight classification yard investment" },
+    { title: "Head of Technical Operations, JR Freight", whyRelevant: "Manages hump yard modernization and retarder maintenance" },
   ],
-  "SNCF / SNCF Réseau": [
-    { title: "Director of Freight Network Operations", whyRelevant: "Manages SNCF Réseau marshalling yard portfolio" },
+  "Korail": [
+    { title: "Director of Infrastructure, Korea Railroad", whyRelevant: "Oversees Korail marshalling yard asset base" },
+    { title: "Head of Procurement, Korail", whyRelevant: "Approves tenders for rail safety equipment" },
   ],
-  "Trafikverket / Green Cargo": [
-    { title: "Head of Freight Infrastructure, Trafikverket", whyRelevant: "Reference operator — Hallsberg hump yard, DECEL installation" },
+  "Kazakhstan Temir Zholy (KTZ)": [
+    { title: "VP Infrastructure", whyRelevant: "Controls KTZ hump yard capex — DECEL reference site at Almaty" },
+    { title: "Director of Technical Development", whyRelevant: "Leads sorting yard modernization procurement" },
+    { title: "Head of Procurement, KTZ", whyRelevant: "Manages international tenders for rail equipment" },
   ],
-  "Ukrzaliznytsia": [
-    { title: "Deputy Director, Infrastructure", whyRelevant: "Oversees Ukrzaliznytsia post-war reconstruction and yard modernization" },
+  "O'zbekiston Temir Yo'llari (UTY)": [
+    { title: "Deputy Director General, Infrastructure", whyRelevant: "Oversees UTY freight yard modernization programme" },
+    { title: "Head of Technical Procurement, UTY", whyRelevant: "Manages tenders for rail safety and automation equipment" },
+  ],
+  "Belarusian Railway (BC)": [
+    { title: "First Deputy Head, Infrastructure", whyRelevant: "Controls BC hump yard investment across the network" },
+    { title: "Head of Capital Construction, BC", whyRelevant: "Manages procurement for sorting yard modernization" },
+  ],
+  "LDz (Latvijas dzelzceļš)": [
+    { title: "Director of Infrastructure, LDz", whyRelevant: "Controls Latvian rail infrastructure investment" },
+    { title: "Head of Procurement, LDz", whyRelevant: "Manages tenders for track and yard equipment" },
+  ],
+  "Lietuvos geležinkeliai (LG)": [
+    { title: "Director of Infrastructure, LTG Infra", whyRelevant: "Manages Lithuanian rail infrastructure investment" },
+    { title: "Head of Procurement, LTG", whyRelevant: "Approves capital tenders for rail equipment" },
+  ],
+  "Eesti Raudtee (EVR)": [
+    { title: "Director of Infrastructure, Eesti Raudtee", whyRelevant: "Controls Estonian rail infrastructure budget" },
+    { title: "Head of Asset Management, EVR", whyRelevant: "Manages freight yard asset renewal" },
+  ],
+  "BDZ / NKZHI": [
+    { title: "Director of Infrastructure, NKZHI", whyRelevant: "Controls Bulgarian national rail infrastructure investment" },
+    { title: "Head of Procurement, NKZHI", whyRelevant: "Manages EU-funded tenders for track and yard systems" },
+  ],
+  "Infrastruktura Železnice Srbije": [
+    { title: "Director of Infrastructure, IŽS", whyRelevant: "Oversees Serbian rail infrastructure investment" },
+    { title: "Head of Technical Procurement, IŽS", whyRelevant: "Manages tenders for yard safety systems" },
+  ],
+  "HŽ Infrastruktura": [
+    { title: "Director of Infrastructure, HŽ Infrastruktura", whyRelevant: "Controls Croatian rail infrastructure budget" },
+    { title: "Head of Asset Management, HŽ", whyRelevant: "Manages freight yard renewal programme" },
+  ],
+  "SŽ Infrastruktura": [
+    { title: "Director of Infrastructure, SŽ", whyRelevant: "Controls Slovenian rail infrastructure investment" },
+    { title: "Head of Procurement, SŽ", whyRelevant: "Manages tenders for rail safety equipment" },
+  ],
+  "Željeznice Federacije BiH / ZRS": [
+    { title: "Director General of Infrastructure", whyRelevant: "Controls Bosnian rail infrastructure budget" },
+    { title: "Head of Procurement", whyRelevant: "Manages tenders for rail safety and yard equipment" },
+  ],
+  "MŽT (North Macedonia Railways)": [
+    { title: "Director of Infrastructure, MŽT", whyRelevant: "Oversees North Macedonia rail infrastructure investment" },
+  ],
+  "HSH (Albanian Railways)": [
+    { title: "Director General, HSH", whyRelevant: "Controls Albanian rail network investment" },
+  ],
+  "OSE / Hellenic Train": [
+    { title: "Director of Infrastructure, OSE", whyRelevant: "Manages Greek national rail infrastructure investment" },
+    { title: "Head of Procurement, Hellenic Train", whyRelevant: "Approves capital tenders for rail equipment" },
+  ],
+  "IP (Infraestruturas de Portugal)": [
+    { title: "Director of Infrastructure, IP", whyRelevant: "Controls Portuguese rail infrastructure investment" },
+    { title: "Head of Procurement, IP", whyRelevant: "Manages EU-funded tenders for track and yard equipment" },
+  ],
+  "Network Rail / DB Cargo UK": [
+    { title: "Head of Freight Infrastructure, Network Rail", whyRelevant: "Oversees Network Rail marshalling yard portfolio" },
+    { title: "Director of Asset Management, Network Rail", whyRelevant: "Controls infrastructure renewal budget" },
+    { title: "Head of Operations, DB Cargo UK", whyRelevant: "Manages DB Cargo UK classification yard operations" },
+  ],
+  "Irish Rail": [
+    { title: "Head of Infrastructure, Iarnród Éireann", whyRelevant: "Controls Irish Rail infrastructure investment" },
+  ],
+  "ARTC / Pacific National": [
+    { title: "Head of Infrastructure, ARTC", whyRelevant: "Manages Australian Rail Track Corporation network investment" },
+    { title: "Director of Operations, Pacific National", whyRelevant: "Oversees Pacific National freight classification operations" },
+  ],
+  "Class I Railroads (BNSF, UP, CSX, NS)": [
+    { title: "VP Engineering", whyRelevant: "Capital engineering authority across Class I hump yard network" },
+    { title: "Director of Mechanical Operations", whyRelevant: "Manages hump retarder maintenance and replacement programmes" },
+    { title: "Director of Capital Projects", whyRelevant: "Approves retarder system capex across the network" },
+  ],
+  "ALL / MRS / Rumo": [
+    { title: "Director of Infrastructure, Rumo", whyRelevant: "Controls Rumo classification yard investment in Brazil" },
+    { title: "Head of Operations, MRS Logística", whyRelevant: "Manages MRS freight yard operations and modernization" },
+  ],
+  "Ferroviaria Central / Belgrano Cargas": [
+    { title: "Director of Infrastructure, Belgrano Cargas", whyRelevant: "Controls Argentine freight rail infrastructure investment" },
+    { title: "Head of Technical Operations", whyRelevant: "Manages classification yard systems procurement" },
+  ],
+  "Transnet Freight Rail": [
+    { title: "Head of Infrastructure, Transnet Freight Rail", whyRelevant: "Controls South African freight rail infrastructure investment" },
+    { title: "Chief Engineer, Transnet Freight Rail", whyRelevant: "Technical specification authority for hump yard systems" },
+    { title: "Head of Procurement, Transnet", whyRelevant: "Manages capital tenders for rail equipment" },
+  ],
+  "Egyptian National Railways": [
+    { title: "Deputy Chairman of Infrastructure, ENR", whyRelevant: "Controls ENR yard infrastructure investment" },
+    { title: "Head of Procurement, ENR", whyRelevant: "Manages tenders for rail safety equipment" },
+  ],
+  "ONCF": [
+    { title: "Director of Infrastructure, ONCF", whyRelevant: "Controls Moroccan national railway infrastructure investment" },
+    { title: "Head of Procurement, ONCF", whyRelevant: "Manages tenders for rail equipment" },
+  ],
+  "RAI (Islamic Republic of Iran Railways)": [
+    { title: "Deputy Director General, Infrastructure", whyRelevant: "Oversees RAI freight yard modernization programme" },
+    { title: "Head of Technical Procurement, RAI", whyRelevant: "Manages tenders for rail safety and automation systems" },
+  ],
+  "Pakistan Railways": [
+    { title: "Additional Director General, Infrastructure", whyRelevant: "Controls Pakistan Railways infrastructure investment" },
+    { title: "Chief Engineer (Works), Pakistan Railways", whyRelevant: "Technical authority for marshalling yard systems" },
   ],
 };
 

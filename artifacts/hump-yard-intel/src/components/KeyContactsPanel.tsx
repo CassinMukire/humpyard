@@ -16,6 +16,21 @@ import {
   Globe,
 } from "lucide-react";
 
+// The 5 decision-maker roles that matter for hump retarder procurement
+// 1. Asset owner (controls capex)  2. Procurement (runs tender)  3. Engineering (writes spec)
+// 4. Operations (budget holder)   5. Maintenance (day-to-day champion)
+const BD_TARGET_ROLES = [
+  { role: "Head of Infrastructure", reason: "Asset owner — controls capex" },
+  { role: "Director of Technical Procurement", reason: "Runs the tender" },
+  { role: "Chief Engineer", reason: "Writes the technical spec" },
+  { role: "Director of Operations", reason: "Budget holder" },
+  { role: "Head of Asset Management", reason: "Maintenance champion" },
+];
+
+function buildLinkedInRoleSearch(role: string, operator: string): string {
+  return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(role + " " + operator)}`;
+}
+
 const LANGUAGES = [
   { code: "en", label: "English" },
   { code: "de", label: "German" },
@@ -256,7 +271,35 @@ export function KeyContactsPanel({ result, defaultOpen = false }: KeyContactsPan
       </button>
 
       {open && (
-        <div className="px-6 pb-5 space-y-3">
+        <div className="px-6 pb-5 space-y-4">
+
+          {/* Quick Role Searches — always shown, operator-targeted */}
+          <div className="border border-border bg-background/20 p-3 space-y-2">
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+              Quick LinkedIn searches &mdash;{" "}
+              <span className="text-primary">{result.operator ?? `${result.country} National Railways`}</span>
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {BD_TARGET_ROLES.map(({ role, reason }) => (
+                <a
+                  key={role}
+                  href={buildLinkedInRoleSearch(role, result.operator ?? result.country)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={reason}
+                  className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-1 border border-blue-600/40 text-blue-400 hover:bg-blue-600/10 transition-colors"
+                >
+                  <Linkedin className="w-2.5 h-2.5 shrink-0" />
+                  {role}
+                </a>
+              ))}
+            </div>
+            <p className="text-[9px] text-muted-foreground/60 font-mono">
+              Hover each role for why it matters. Opens LinkedIn people search filtered by role + operator.
+            </p>
+          </div>
+
+          {/* Named / role-inferred contacts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {contacts.map((contact, i) => (
               <ContactCard
