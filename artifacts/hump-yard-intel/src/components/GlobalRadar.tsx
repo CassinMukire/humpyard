@@ -14,6 +14,7 @@ import { Play, Square, Download, Activity, Radar, HelpCircle } from "lucide-reac
 import { exportToCsv } from "@/lib/csv";
 import { ResultCard } from "./ResultCard";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { getMarketOpportunity, PRIORITY_CONFIG, formatMSEK } from "@/lib/marketData";
 
 const TIER_DEFINITIONS = {
   A: {
@@ -201,28 +202,44 @@ export function GlobalRadar() {
               </div>
 
               <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-                {tierResults.map((res, i) => (
-                  <Dialog key={i}>
-                    <DialogTrigger asChild>
-                      <button
-                        className={`w-full text-left p-3 border text-sm font-medium transition-all hover:-translate-y-0.5 hover:shadow-md ${def.cardColor}`}
-                      >
-                        <div className="flex justify-between items-center">
-                          <span className="truncate">{res.country}</span>
-                          <span className="text-xs font-mono opacity-70">{res.verdict}</span>
-                        </div>
-                        {res.keyContacts && res.keyContacts.length > 0 && (
-                          <p className="text-[10px] font-mono opacity-60 mt-0.5">
-                            {res.keyContacts.length} contact{res.keyContacts.length !== 1 ? "s" : ""} identified
-                          </p>
-                        )}
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-5xl border-border bg-background p-0 rounded-none h-[90vh] overflow-y-auto">
-                      <ResultCard result={res} />
-                    </DialogContent>
-                  </Dialog>
-                ))}
+                {tierResults.map((res, i) => {
+                  const mkt = getMarketOpportunity(res.country);
+                  const mktCfg = mkt ? PRIORITY_CONFIG[mkt.priority] : null;
+                  return (
+                    <Dialog key={i}>
+                      <DialogTrigger asChild>
+                        <button
+                          className={`w-full text-left p-3 border text-sm font-medium transition-all hover:-translate-y-0.5 hover:shadow-md ${def.cardColor}`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="truncate">{res.country}</span>
+                            <span className="text-xs font-mono opacity-70">{res.verdict}</span>
+                          </div>
+                          {mkt && mktCfg && (
+                            <div className="flex items-center justify-between mt-1 gap-1">
+                              <span className={`text-[9px] font-mono font-semibold ${mktCfg.color}`}>
+                                {mktCfg.label}
+                              </span>
+                              {mkt.activeYards > 0 && (
+                                <span className="text-[9px] font-mono opacity-60">
+                                  ~{mkt.activeYards} yards · {formatMSEK(mkt.potentialValueMaxMSEK)} max
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {res.keyContacts && res.keyContacts.length > 0 && (
+                            <p className="text-[10px] font-mono opacity-60 mt-0.5">
+                              {res.keyContacts.length} contact{res.keyContacts.length !== 1 ? "s" : ""} identified
+                            </p>
+                          )}
+                        </button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-5xl border-border bg-background p-0 rounded-none h-[90vh] overflow-y-auto">
+                        <ResultCard result={res} />
+                      </DialogContent>
+                    </Dialog>
+                  );
+                })}
               </div>
             </div>
           );

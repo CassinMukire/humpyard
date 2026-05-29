@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { exportToCsv } from "@/lib/csv";
 import { KeyContactsPanel } from "./KeyContactsPanel";
+import { getMarketOpportunity, PRIORITY_CONFIG, formatMSEK } from "@/lib/marketData";
 import {
   Download,
   AlertTriangle,
@@ -20,6 +21,9 @@ import {
   MapPin,
   Search,
   HelpCircle,
+  TrendingUp,
+  Building2,
+  Lock,
 } from "lucide-react";
 
 const TIER_DEFINITIONS: Record<string, { label: string; description: string; action: string }> = {
@@ -200,8 +204,84 @@ export function ResultCard({ result }: ResultCardProps) {
           )}
         </div>
 
-        {/* Right Column: Entity Details */}
+        {/* Right Column: Entity Details + Market Opportunity */}
         <div className="space-y-6 bg-card-border/10 p-4 border border-border">
+
+          {/* Market Opportunity */}
+          {(() => {
+            const mkt = getMarketOpportunity(result.country);
+            if (!mkt) return null;
+            const cfg = PRIORITY_CONFIG[mkt.priority];
+            return (
+              <>
+                <section>
+                  <h3 className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5" /> Market Opportunity
+                  </h3>
+
+                  {/* Priority badge */}
+                  <div className={`inline-flex items-center gap-1.5 px-2 py-1 border text-xs font-mono font-semibold mb-3 ${cfg.bg} ${cfg.border} ${cfg.color}`}>
+                    {mkt.priority === "Restricted" && <Lock className="w-3 h-3" />}
+                    {mkt.priority !== "Restricted" && <Building2 className="w-3 h-3" />}
+                    {cfg.label} Priority
+                  </div>
+
+                  {mkt.priority !== "Restricted" && mkt.activeYards > 0 ? (
+                    <div className="space-y-2">
+                      {/* Yard count */}
+                      <div className="flex justify-between text-xs font-mono">
+                        <span className="text-muted-foreground">Active hump yards</span>
+                        <span className="text-white">~{mkt.activeYards}</span>
+                      </div>
+
+                      {/* Value range */}
+                      <div className="flex justify-between text-xs font-mono">
+                        <span className="text-muted-foreground">Est. market value</span>
+                        <span className="text-primary font-semibold">
+                          {formatMSEK(mkt.potentialValueMinMSEK)}–{formatMSEK(mkt.potentialValueMaxMSEK)}
+                        </span>
+                      </div>
+
+                      {/* Visual bar: proportion of max market (Germany ~12,750 MSEK) */}
+                      <div className="mt-1">
+                        <div className="h-1.5 bg-border w-full">
+                          <div
+                            className={`h-full transition-all ${cfg.bg.replace("/10", "/60")}`}
+                            style={{ width: `${Math.min(100, (mkt.potentialValueMaxMSEK / 12750) * 100)}%` }}
+                          />
+                        </div>
+                        <p className="text-[9px] font-mono text-muted-foreground/60 mt-0.5">
+                          Relative to Germany (largest market)
+                        </p>
+                      </div>
+
+                      {/* Benchmark note */}
+                      <p className="text-[10px] text-muted-foreground/70 font-mono border-t border-border pt-2 mt-1">
+                        Based on 70–150 MSEK per yard (DECEL benchmark).
+                        Full replacement cycle ~25 yrs.
+                      </p>
+                    </div>
+                  ) : mkt.priority === "Restricted" ? (
+                    <p className="text-xs text-muted-foreground italic">
+                      Market value not calculable — access restrictions apply.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">
+                      No active hump yard infrastructure identified.
+                    </p>
+                  )}
+
+                  {/* Rationale */}
+                  <p className="text-[11px] text-muted-foreground leading-relaxed mt-3 border-l border-primary/20 pl-2">
+                    {mkt.rationale}
+                  </p>
+                </section>
+
+                <Separator className="bg-border" />
+              </>
+            );
+          })()}
+
           <section>
             <h3 className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">
               Operator / Authority
