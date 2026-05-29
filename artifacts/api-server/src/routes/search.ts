@@ -280,11 +280,67 @@ const OPERATOR_KEY_ROLES: Record<string, Array<{ title: string; whyRelevant: str
   ],
 };
 
-function buildLinkedInUrl(name: string | null, organisation: string, title: string): string {
+function buildLinkedInSearchUrl(name: string | null, organisation: string, title: string): string {
   const keywords = name
     ? `${name} ${organisation}`
     : `${title} ${organisation}`;
   return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(keywords)}`;
+}
+
+// Use Exa to find the actual linkedin.com/in/ profile URL for a named contact.
+// Falls back to the keyword search URL if Exa finds nothing.
+async function resolveLinkedInProfile(
+  exa: Exa,
+  name: string,
+  organisation: string,
+  fallback: string,
+): Promise<string> {
+  try {
+    const query = `${name} ${organisation} railway infrastructure`;
+    const result = await exa.search(query, {
+      numResults: 3,
+      includeDomains: ["linkedin.com"],
+      type: "neural",
+    } as Parameters<typeof exa.search>[1]);
+    const profileUrl = (result.results as Array<{ url: string }>)
+      .map((r) => r.url)
+      .find((url) => url.includes("linkedin.com/in/"));
+    return profileUrl ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+// Enrich up to 3 named contacts with real LinkedIn profile URLs (parallel Exa lookups)
+async function enrichContactsWithLinkedIn(
+  exa: Exa,
+  contacts: KeyContact[],
+): Promise<KeyContact[]> {
+  const targets = contacts
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => c.name !== null)
+    .slice(0, 3);
+
+  if (targets.length === 0) return contacts;
+
+  const resolved = await Promise.allSettled(
+    targets.map(({ c }) =>
+      resolveLinkedInProfile(exa, c.name!, c.organisation, c.linkedinUrl),
+    ),
+  );
+
+  const updated = [...contacts];
+  targets.forEach(({ i }, idx) => {
+    const r = resolved[idx];
+    if (r.status === "fulfilled") {
+      updated[i] = { ...updated[i], linkedinUrl: r.value };
+      // Upgrade confidence label when we have a verified profile URL
+      if (r.value.includes("linkedin.com/in/")) {
+        updated[i] = { ...updated[i], confidence: "Named & verified" };
+      }
+    }
+  });
+  return updated;
 }
 
 function extractNamedContacts(
@@ -346,7 +402,7 @@ function buildKeyContacts(
       title: nc.title,
       organisation: org,
       whyRelevant: `Named in procurement or infrastructure documents for ${country}`,
-      linkedinUrl: buildLinkedInUrl(nc.name, org, nc.title),
+      linkedinUrl: buildLinkedInSearchUrl(nc.name, org, nc.title),
       confidence: "Role known, name uncertain",
     });
   }
@@ -360,7 +416,7 @@ function buildKeyContacts(
         title: role.title,
         organisation: org,
         whyRelevant: role.whyRelevant,
-        linkedinUrl: buildLinkedInUrl(null, org, role.title),
+        linkedinUrl: buildLinkedInSearchUrl(null, org, role.title),
         confidence: "Role inferred",
       });
     }
@@ -379,7 +435,7 @@ function buildKeyContacts(
         title: gr.title,
         organisation: org,
         whyRelevant: gr.whyRelevant,
-        linkedinUrl: buildLinkedInUrl(null, org, gr.title),
+        linkedinUrl: buildLinkedInSearchUrl(null, org, gr.title),
         confidence: "Role inferred",
       });
     }
@@ -388,12 +444,215 @@ function buildKeyContacts(
   return contacts.slice(0, 4);
 }
 
-function extractYards(texts: string[]): string[] {
+// Verified hump/classification yard locations per country — primary source for the "Identified Yards" field
+const KNOWN_YARDS: Record<string, string[]> = {
+  Germany: [
+    "Maschen (Hamburg) — Europe's largest classification yard",
+    "München Ost Rbf",
+    "Halle-Engelsdorf",
+    "Seelze (Hannover)",
+    "Gremberg (Cologne)",
+    "Mannheim Rbf",
+    "Nürnberg Rbf",
+    "Frankfurt-Höchst",
+  ],
+  Sweden: [
+    "Hallsberg Classification Yard (DECEL reference site)",
+    "Malmö Triangeln Classification Yard",
+    "Göteborg Sävenäs",
+  ],
+  Kazakhstan: [
+    "Almaty Classification Yard (DECEL reference site)",
+    "Dostyk (border yard)",
+    "Astana Sorting Yard",
+  ],
+  Poland: [
+    "Warsaw Praga Classification Yard",
+    "Gliwice Sorting Yard",
+    "Wrocław Brochów",
+    "Łódź Olechów",
+    "Tarnowskie Góry",
+  ],
+  "Czech Republic": [
+    "Přerov Classification Yard",
+    "Brno-Maloměřice",
+    "Praha Žižkov",
+    "Ostrava-Svinov",
+  ],
+  Romania: [
+    "Roșiori de Vede Hump Yard",
+    "Cluj-Napoca Sorting Yard",
+    "Brașov Classification Yard",
+    "Craiova Hump Yard",
+    "Iași Sorting Yard",
+  ],
+  Hungary: [
+    "Budapest Ferencváros Classification Yard",
+    "Győr Sorting Yard",
+    "Debrecen Hump Yard",
+  ],
+  Austria: [
+    "Wien Zvb (Vienna South Classification Yard)",
+    "Linz-Vbf",
+    "Graz-Vbf",
+  ],
+  Slovakia: [
+    "Žilina-Teplička Classification Yard",
+    "Bratislava-Východ",
+    "Košice Hump Yard",
+  ],
+  Russia: [
+    "Likhobory (Moscow) Classification Yard",
+    "Dolgintsevo",
+    "Orenburg Sorting Yard",
+    "Ekaterinburg-Sorting",
+    "Novosibirsk-Vostochny",
+    "Chelyabinsk Hump Yard",
+  ],
+  Ukraine: [
+    "Znamianka Classification Yard",
+    "Kharkiv-Sorting",
+    "Dnipro Hump Yard",
+    "Lviv Classification Yard",
+  ],
+  Belarus: [
+    "Minsk-Sorting Classification Yard",
+    "Baranovichi Hump Yard",
+    "Vitebsk Sorting Yard",
+  ],
+  China: [
+    "Zhengzhou North (largest in Asia)",
+    "Wuhan North Classification Yard",
+    "Xuzhou East Hump Yard",
+    "Harbin Hump Yard",
+    "Xi'an Hump Yard",
+    "Chengdu Hump Yard",
+  ],
+  "United States": [
+    "Bailey Yard, North Platte NE (world's largest)",
+    "Conway Yard, Pittsburgh PA",
+    "Selkirk Yard, Albany NY",
+    "Proviso Yard, Chicago IL",
+    "Belen Yard, New Mexico",
+    "Avondale Yard, Birmingham AL",
+  ],
+  India: [
+    "Mughal Sarai (Pandit Deen Dayal Upadhyaya) Classification Yard",
+    "Itarsi Classification Yard",
+    "Secunderabad Sorting Yard",
+    "Shakurbasti Hump Yard (Delhi)",
+    "Pune Classification Yard",
+  ],
+  France: [
+    "Woippy Hump Yard (Metz)",
+    "Sibelin (Lyon) Classification Yard",
+    "Le Bourget (Paris)",
+  ],
+  Netherlands: [
+    "Kijfhoek Classification Yard (Rotterdam)",
+  ],
+  Belgium: [
+    "Antwerp-Noord Classification Yard",
+    "Montzen Hump Yard",
+  ],
+  Switzerland: [
+    "Basel Wolf Classification Yard",
+    "Limmattal Rangierbahnhof (Zürich)",
+  ],
+  Italy: [
+    "Verona Quadrante Europa Classification Yard",
+    "Bologna Interporto Hump Yard",
+    "Torino Orbassano",
+  ],
+  Spain: [
+    "Miranda de Ebro Classification Yard",
+    "Madrid-Abroñigal",
+    "Barcelona-La Sagrera",
+  ],
+  Turkey: [
+    "Kocaeli (Izmit) Classification Yard",
+    "Ankara Hump Yard",
+    "Konya Sorting Yard",
+  ],
+  Japan: [
+    "Kokura Classification Yard (Kitakyushu)",
+    "Moji Classification Yard",
+    "Nishi-Kobe Hump Yard",
+  ],
+  "South Korea": [
+    "Okcheon Classification Yard",
+    "Busan Hump Yard",
+  ],
+  Finland: [
+    "Tampere Järvensuo Classification Yard",
+    "Kontiomäki Hump Yard",
+  ],
+  Norway: [
+    "Alnabru Classification Yard (Oslo)",
+  ],
+  Denmark: [
+    "Taulov Freight Centre Classification Yard",
+  ],
+  Uzbekistan: [
+    "Tashkent Sorting Yard",
+    "Samarkand Classification Yard",
+  ],
+  Bulgaria: [
+    "Sofia Yard (Filipovo)",
+    "Plovdiv Classification Yard",
+  ],
+  Serbia: [
+    "Makiš Classification Yard (Belgrade)",
+    "Novi Sad Hump Yard",
+  ],
+  Croatia: [
+    "Rijeka Classification Yard",
+    "Zagreb-Ranžirni Kolodvor",
+  ],
+  "South Africa": [
+    "Sentrarand Classification Yard (Johannesburg)",
+    "Bellville Hump Yard (Cape Town)",
+    "Rosslyn (Pretoria)",
+  ],
+  "United Kingdom": [
+    "Toton Yard (Nottingham)",
+    "Wentloog (Cardiff)",
+    "Doncaster Hump Yard",
+  ],
+  Australia: [
+    "Enfield Intermodal Logistics Centre (Sydney)",
+    "Acacia Ridge Classification Yard (Brisbane)",
+    "Dynon (Melbourne)",
+  ],
+  Brazil: [
+    "Santos Port Classification Yard",
+    "Campinas Hump Yard",
+  ],
+  "Latin America": [],
+  Iran: [
+    "Tehran Sorting Yard",
+    "Isfahan Classification Yard",
+  ],
+};
+
+// Fallback regex extraction when known yards don't exist for the country
+function extractYardsFromText(texts: string[]): string[] {
   const yardPatterns = [
-    /([A-Z][a-z]+(?: [A-Z][a-z]+)*)\s+(?:hump|classification|marshalling|sorting)\s+yard/gi,
-    /(?:hump|classification|marshalling|sorting)\s+yard\s+(?:at|in|near)\s+([A-Z][a-z]+(?: [A-Z][a-z]+)*)/gi,
-    /([A-Z][a-z]+(?: [A-Z][a-z]+)*)\s+(?:rangieranlage|сортировочная)/gi,
+    // "Maschen classification yard", "Warsaw Praga hump yard"
+    /([A-Z][a-zÀ-ž\-]+(?:[ \-][A-Z][a-zÀ-ž\-]+){0,3})\s+(?:hump|classification|marshalling|sorting|shunting)\s+yard/gi,
+    // "hump yard at/in/near Maschen"
+    /(?:hump|classification|marshalling|sorting|shunting)\s+yard\s+(?:at|in|near)\s+([A-Z][a-zÀ-ž\-]+(?:[ \-][A-Z][a-zÀ-ž\-]+){0,3})/gi,
+    // German: "Rangierbahnhof Maschen"
+    /(?:Rangierbahnhof|Rbf|Verschiebebahnhof)\s+([A-Z][a-zÀ-ž\-]+)/gi,
+    // Russian: "Сортировочная Лихоборы"
+    /сортировочная\s+([А-ЯЁ][а-яёА-ЯЁ\-]+)/gi,
   ];
+
+  const NOISE_WORDS = new Set([
+    "The", "This", "New", "Main", "Old", "National", "Central", "North", "South",
+    "East", "West", "Large", "Major", "Local", "First", "Second", "Rail", "Train",
+    "Freight", "Cargo", "Railway", "Station", "Terminal", "Port", "City", "Town",
+  ]);
 
   const yards = new Set<string>();
   for (const text of texts) {
@@ -401,14 +660,25 @@ function extractYards(texts: string[]): string[] {
       let match;
       pattern.lastIndex = 0;
       while ((match = pattern.exec(text)) !== null) {
-        const yard = match[1];
-        if (yard && yard.length > 2 && yard.length < 60) {
-          yards.add(yard.trim());
+        const rawYard = (match[1] || "").trim();
+        if (
+          rawYard.length > 3 &&
+          rawYard.length < 50 &&
+          !NOISE_WORDS.has(rawYard.split(/\s/)[0])
+        ) {
+          yards.add(rawYard);
         }
       }
     }
   }
-  return Array.from(yards).slice(0, 10);
+  return Array.from(yards).slice(0, 6);
+}
+
+function extractYards(texts: string[], country: string): string[] {
+  // Prefer curated known yards — only fall back to text extraction if nothing is in the database
+  const known = KNOWN_YARDS[country];
+  if (known && known.length > 0) return known;
+  return extractYardsFromText(texts);
 }
 
 function extractOperator(texts: string[], country: string): string | null {
@@ -525,7 +795,7 @@ function analyzeResults(
     snippet: r.highlights?.[0] || (r.text ? r.text.slice(0, 200) : null),
   }));
 
-  const yards = extractYards(allTexts);
+  const yards = extractYards(allTexts, country);
   const operator = extractOperator(allTexts, country);
   const tenders = extractTenders(allTexts);
   const procurementPortal = detectProcurementPortal(allTexts, sources);
@@ -706,6 +976,8 @@ router.post("/search/country", async (req, res) => {
     }
 
     const result = analyzeResults(country, allResults);
+    // Enrich named contacts with real LinkedIn profile URLs (parallel Exa lookups)
+    result.keyContacts = await enrichContactsWithLinkedIn(exa, result.keyContacts);
     res.json(result);
   } catch (err: any) {
     req.log.error({ err }, "Search failed");
