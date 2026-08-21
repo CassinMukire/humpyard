@@ -1,0 +1,53 @@
+{
+  "name": "Poland — OIU vallar golden set (W34 fixture)",
+  "spec_ref": "Golden set A — US-2.3, §6",
+  "description": "The 5 OIU vallar (marshalling yards) named in the project corpus, with operator = PKP PLK. Each must extract with confidence=V, operator_org_id matching PKP PLK, and either geo coordinates or a documented operator. Used as the precision/recall gate before the Poland dossier ships.",
+  "yard_count_expected": 5,
+  "yards": [
+    {
+      "id": "pl-yard-1",
+      "name": "Idzikowice",
+      "expected_status": "active",
+      "expected_operator_org_match_key": "pkp plk",
+      "notes": "Modernization history known; primary source = PKP PLK infrastructure registry."
+    },
+    {
+      "id": "pl-yard-2",
+      "name": "Karsznice",
+      "expected_status": "active",
+      "expected_operator_org_match_key": "pkp plk",
+      "notes": "Modernization history known; primary source = PKP PLK infrastructure registry."
+    },
+    {
+      "id": "pl-yard-3",
+      "name": "Warszawa Praga",
+      "expected_status": "active",
+      "expected_operator_org_match_key": "pkp plk",
+      "notes": "Warsaw marshalling yard. Modernization history known; primary source = PKP PLK."
+    },
+    {
+      "id": "pl-yard-4",
+      "name": "Gliwice",
+      "expected_status": "active",
+      "expected_operator_org_match_key": "pkp plk",
+      "notes": "Silesian industrial corridor; primary source = PKP PLK."
+    },
+    {
+      "id": "pl-yard-5",
+      "name": "Łódź Olechów",
+      "expected_status": "active",
+      "expected_operator_org_match_key": "pkp plk",
+      "notes": "Modernization history known; primary source = PKP PLK."
+    }
+  ],
+  "golden_gates": {
+    "yard_extraction_precision_min": 0.9,
+    "yard_extraction_recall_min": 0.8,
+    "hallucinated_yards_max": 0
+  },
+  "notes_for_builder": [
+    "Each yard must have ≥1 source_url with host matching the primary domain whitelist (plk-sa.pl, gov.pl, etc.).",
+    "ASCII-normalize names: 'Lodz Olechow' and 'Łódź Olechów' dedupe to one entity via match_key.",
+    "If the OIU corpus PDFs are not yet in the repo, this fixture will fail — that's the signal to chase the corpus (gap #8)."
+  ]
+}

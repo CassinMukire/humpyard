@@ -1,0 +1,54 @@
+{
+  "name": "China scan — junk regression corpus",
+  "spec_ref": "US-1.2 — extracted text fragments MUST NOT render as Yard entities",
+  "description": "Fixtures that re-create the 2026-08-17 China-scan bug, where text fragments were extracted as 'Yard' entities. Every input below either renders as a real Yard (with full SourcedFact) or lands in the review queue — never as a fragment.",
+  "inputs": [
+    {
+      "id": "cn-junk-01",
+      "snippet": "Code for Design on Hump and",
+      "expected_entity": "discard",
+      "expected_gate_reason": "Yard requires a name; this is a document title fragment",
+      "expected_confidence": null
+    },
+    {
+      "id": "cn-junk-02",
+      "snippet": "General Specification for Railway Marshalling Yard",
+      "expected_entity": "discard",
+      "expected_gate_reason": "Yard requires a name AND (geo OR operator); this is a document title",
+      "expected_confidence": null
+    },
+    {
+      "id": "cn-junk-03",
+      "snippet": "5.2 Yard Lighting Requirements (continued)",
+      "expected_entity": "discard",
+      "expected_gate_reason": "Yard requires a name AND (geo OR operator); this is a section heading",
+      "expected_confidence": null
+    },
+    {
+      "id": "cn-junk-04",
+      "snippet": "Zhengzhou North (largest in Asia)",
+      "expected_entity": "render",
+      "expected_gate_reason": "Real yard with known operator and geo",
+      "expected_confidence": "V"
+    },
+    {
+      "id": "cn-junk-05",
+      "snippet": "Wuhan North Classification Yard",
+      "expected_entity": "render",
+      "expected_gate_reason": "Real yard with known operator (China Railway CR)",
+      "expected_confidence": "V"
+    },
+    {
+      "id": "cn-junk-06",
+      "snippet": "According to a 2019 industry report, the new sorting yard near Wuhan...",
+      "expected_entity": "queue",
+      "expected_gate_reason": "[O] single secondary source — needs corroboration or human confirm",
+      "expected_confidence": "O"
+    }
+  ],
+  "expected_counts": {
+    "render": 2,
+    "queue": 1,
+    "discard": 3
+  }
+}
