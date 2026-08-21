@@ -27,7 +27,7 @@
          │ pg
          ▼
 ┌─────────────────┐
-│  PostgreSQL     │  lib/db
+│  PostgreSQL     │  lib/db (any EU/EEA-hosted instance)
 └─────────────────┘
 ```
 

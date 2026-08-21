@@ -1,25 +1,28 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { closeDb } from "@workspace/db";
 
-const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
-const port = Number(rawPort);
+const port = Number(process.env["PORT"] ?? 5000);
 
 if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
+  throw new Error(`Invalid PORT value: "${process.env["PORT"]}"`);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
-
+const server = app.listen(port, () => {
   logger.info({ port }, "Server listening");
 });
+
+// Graceful shutdown — close DB pool so connections don't leak
+async function shutdown(signal: NodeJS.Signals): Promise<void> {
+  logger.info({ signal }, "Shutting down");
+  server.close(async () => {
+    await closeDb();
+    logger.info("Shutdown complete");
+    process.exit(0);
+  });
+  // Hard exit if shutdown takes >10s
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));

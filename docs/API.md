@@ -1,6 +1,6 @@
 # API Reference
 
-Base URL: `http://localhost:5000/api` (dev) · `https://<repl>.repl.co/api` (prod)
+Base URL: `http://localhost:5000/api` (dev) · `https://<your-domain>/api` (prod)
 
 **Auth**: v1 endpoints (`/api/v1/*`) require single-user basic auth
 (`AUTH_USER` + `AUTH_PASS`). Existing scanner endpoints (`/api/*`) are public

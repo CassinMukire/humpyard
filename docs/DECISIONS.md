@@ -9,7 +9,7 @@ don't hear back.
 | 1 | **Auth scope = single-user (Cassin only) for v1?** | Cassin | Aug 23 | I build single-user basic auth. Multi-user in October. |
 | 2 | **Voice capture**: native voice-memo + manual attach (my pick) vs server Whisper | Cassin | Aug 23 | I build native voice-memo + manual text log. Whisper is P2. |
 | 3 | **Global Radar**: disable v1, or gate extraction? | Cassin + Builder | Aug 23 | I disable Global Radar's entity extraction — tier + summary only. The 50-country scan doesn't feed the entity queue. |
-| 4 | **Snapshot storage choice** (Replit Object Storage? R2?) + EU/EEA jurisdiction | Cassin + Builder | Aug 25 | I keep the local-FS placeholder; Replit Object Storage (Frankfurt) is the most likely final answer. |
+| 4 | **Snapshot storage choice** (S3-compatible? R2? GCS? local FS?) + EU/EEA jurisdiction | Cassin + Builder | Aug 25 | I keep the local-FS placeholder. Final answer is whichever S3-compatible bucket in the EU/EEA region we land on. |
 | 5 | **Alias table owner + file location** for cross-lingual org resolution | Cassin | Aug 25 | I seed the first 5 canonical orgs (PKP PLK, DB InfraGo, KTZ, UTY, Trafikverket). Cassin owns ongoing curation. |
 | 6 | **monday.com DPA signed**, workspace perms, board provisioning | **Hitank + Cassin** | Aug 23 | Without the DPA, the W35 monday push demo uses a sandbox board. |
 | 7 | **Meeting-capture in or out scope** | Cassin | Aug 25 | Out. All v1 facts are sourced from project corpus + Exa, not from Cassin's memory. |

@@ -18,6 +18,7 @@ A briefing machine an operator (Cassin) can bet a meeting on. Every fact on scre
 - DB: PostgreSQL + Drizzle ORM (`lib/db`)
 - API contracts: OpenAPI + orval → Zod + React Query hooks
 - LLM: OpenAI (gpt-4.1 for extraction, gpt-4.1-mini for re-classification, no LLM in battle mode)
+- Deployment: cloud-agnostic. Runs on any host that supports Node 24 + Postgres (local, Docker, Render, Fly, Railway, ECS, GKE, etc.)
 
 ## Where things live
 
@@ -26,15 +27,15 @@ artifacts/
 ├── api-server/          # Express API
 │   ├── src/routes/      # search, outreach, dossiers, review-queue, monday-sync
 │   ├── src/lib/         # trust-layer, storage, monday-client
-│   └── src/middlewares/ # auth (single-user basic)
+│   └── src/middlewares/ # auth (single-user basic), validate (Zod)
 ├── hump-yard-intel/     # React app
 │   ├── src/pages/       # home, review-queue, dossier, battle-card
 │   └── src/components/  # ResultCard, KeyContactsPanel, BattleCard
 └── mockup-sandbox/      # (unused in v1)
 
 lib/
-├── api-spec/openapi.yaml    # source of truth for all API contracts
-├── api-zod/                 # Zod schemas (generated + manual)
+├── api-spec/openapi.yaml    # source of truth for existing scanner API contracts
+├── api-zod/                 # Zod schemas (generated + manual v1 entities)
 ├── api-client-react/        # React Query hooks (generated)
 ├── db/                      # Drizzle schema (SourcedFact + entities)
 └── integrations-openai-ai-server/
@@ -45,6 +46,8 @@ data/
 golden-set/                  # eval fixtures (CI gate)
 ├── poland-yards.json        # 5 OIU vallar + 92 PLK contacts
 └── china-junk-corpus.json   # regression: 0 entities render
+
+docs/                        # API, DB, architecture, env, sprint, decisions
 ```
 
 ## The trust contract (no exceptions)
@@ -101,7 +104,7 @@ A fact with no resolvable source **cannot render** in a dossier. Hard rule.
 | 1 | Auth scope = single-user (Cassin only) for v1? | Cassin |
 | 2 | Voice capture: native voice-memo + manual attach (my pick) vs server Whisper | Cassin |
 | 3 | Global Radar: disable v1, or gate extraction? | Builder + Cassin |
-| 4 | Snapshot storage choice (Replit Object Storage? R2?) + EU/EEA jurisdiction | Cassin + Builder |
+| 4 | Snapshot storage choice (S3-compatible? Cloudflare R2? GCS? local FS?) + EU/EEA jurisdiction | Cassin + Builder |
 | 5 | Alias table owner + file location | Cassin |
 | 6 | monday.com DPA signed, workspace perms, boards provisioned | Hitank + Cassin |
 | 7 | Meeting-capture in or out scope | Cassin |
@@ -111,19 +114,20 @@ A fact with no resolvable source **cannot render** in a dossier. Hard rule.
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm --filter @workspace/api-server run dev   # port 5000
-pnpm --filter @workspace/hump-yard-intel run dev  # port 8080
+pnpm --filter @workspace/db run push           # one-time, dev only
+pnpm --filter @workspace/api-server run dev    # port 5000
+pnpm --filter @workspace/hump-yard-intel run dev   # port 8080
 pnpm run typecheck
 pnpm run build
 ```
 
-Required env:
+Required env (see `docs/ENV.md`):
 
+- `DATABASE_URL` — Postgres connection string
 - `EXA_API_KEY` — search
 - `OPENAI_API_KEY` — outreach + extraction
 - `AUTH_USER`, `AUTH_PASS` — basic auth (set both or set `DISABLE_AUTH=true` for dev)
 - `MONDAY_API_TOKEN` — monday.com sync
-- `SNAPSHOT_STORE_URL` etc. — TBD per gap #4
 
 ## Pointers
 
@@ -131,3 +135,5 @@ Required env:
 - Demo recordings: TBD
 - monday.com: People board (Organizations + Plays in P2)
 - Repo: `C:\Users\hitan\Downloads\Hump-Yard-Insight (1)\Hump-Yard-Insight`
+- Full docs: `docs/README.md` (entry point)
+

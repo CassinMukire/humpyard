@@ -7,9 +7,9 @@
 // alongside. A dead original does not invalidate the fact; it downgrades
 // nothing by itself. A weekly link-checker marks each source live/dead.
 //
-// v1 placeholder: writes to the local filesystem under data/snapshots/. Once
-// the storage decision lands (gap #4 — Replit Object Storage vs Cloudflare R2
-// vs other), swap the implementation behind this interface.
+// v1 placeholder: writes to the local filesystem under data/snapshots/. To
+// deploy elsewhere, swap the implementation behind this interface
+// (S3-compatible, R2, GCS, Azure Blob, etc.). The interface is the contract.
 // =============================================================================
 
 import { promises as fs } from "node:fs";
