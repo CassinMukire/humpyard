@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -27,8 +27,8 @@ app.use(
   }),
 );
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 // Public routes (existing scanner endpoints — search, search/countries,
 // search/outreach, health). These are NOT gated in v1 so the existing
@@ -39,5 +39,22 @@ app.use("/api", router);
 // v1 routes (gated by single-user basic auth). New dossier / review-queue /
 // battle-card / monday-sync endpoints. See routes/v1/.
 app.use("/api/v1", v1Router);
+
+// Centralized error handler. Catches anything passed to next(err) or thrown
+// in an async handler (Express 5 handles async errors automatically).
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+  const message = err instanceof Error ? err.message : "Unknown error";
+  req.log.error({ err }, "Unhandled error in request handler");
+  res.status(500).json({
+    error: "Internal server error",
+    message: process.env["NODE_ENV"] === "production" ? undefined : message,
+    request_id: req.id,
+  });
+});
+
+// 404 for unmatched API routes
+app.use("/api/*", (_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
 
 export default app;

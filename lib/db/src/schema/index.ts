@@ -1,20 +1,23 @@
-// Export your models here. Add one export per file
-// export * from "./posts";
+// =============================================================================
+// Drizzle schema barrel
 //
-// Each model/table should ideally be split into different files.
-// Each model/table should define a Drizzle table, insert schema, and types:
+// All v1 entities live here. The wire-format Zod schemas (in
+// lib/api-zod/src/manual/schemas.ts) are the source of truth for shape and
+// validation; these tables are the source of truth for storage. They are
+// kept in sync — a drift between the two is a bug.
 //
-//   import { pgTable, text, serial } from "drizzle-orm/pg-core";
-//   import { createInsertSchema } from "drizzle-zod";
-//   import { z } from "zod/v4";
-//
-//   export const postsTable = pgTable("posts", {
-//     id: serial("id").primaryKey(),
-//     title: text("title").notNull(),
-//   });
-//
-//   export const insertPostSchema = createInsertSchema(postsTable).omit({ id: true });
-//   export type InsertPost = z.infer<typeof insertPostSchema>;
-//   export type Post = typeof postsTable.$inferSelect;
+// Indexes are intentionally minimal in v1; we add more in October when we
+// know which queries are slow.
+// =============================================================================
 
-export {}
+export * from "./enums";
+export * from "./markets";
+export * from "./yards";
+export * from "./orgs";
+export * from "./persons";
+export * from "./plays";
+export * from "./corrections";
+export * from "./review-queue";
+export * from "./battle-cards";
+export * from "./doctrine-revisions";
+export * from "./meetings";
