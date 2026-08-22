@@ -1,0 +1,48 @@
+# Files / dirs to exclude from the Docker build context.
+# Smaller context = faster build.
+
+# Version control
+.git
+.gitignore
+
+# Editor / IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Node / pnpm
+node_modules
+.local
+.cache
+
+# Build output
+dist
+out-tsc
+*.tsbuildinfo
+
+# Env files (only .env.example is allowed in for documentation)
+.env
+.env.local
+.env.*.local
+
+# Trash / scratch
+scripts/trash
+
+# Docs that go in the repo but not the image
+docs
+*.md
+LICENSE
+
+# Test / eval data we don't need in prod
+golden-set
+attached_assets
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Replit leftovers (shouldn't exist anymore, but defence in depth)
+.replit
+.replitignore
+replit.md

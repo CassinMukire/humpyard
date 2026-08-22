@@ -14,25 +14,32 @@ are in [docs/](./docs/README.md).
 | Environment variables | `.env.example` | [docs/ENV.md](./docs/ENV.md) |
 | Sprint plan + open gaps | — | [docs/SPRINT.md](./docs/SPRINT.md) · [docs/DECISIONS.md](./docs/DECISIONS.md) |
 
-## Quick start
+## Quick start (one command)
 
 ```bash
-# 1. Install
+cp .env.example .env        # fill in EXA_API_KEY, OPENAI_API_KEY, AUTH_PASS
+docker compose up           # builds, starts Postgres + the app
+# Open http://localhost:8080
+```
+
+That's the whole stack. The api-server serves the API at `/api/*` and the
+built frontend at `/*`. Postgres data persists in a named volume.
+
+## Quick start (no Docker)
+
+```bash
 pnpm install --frozen-lockfile
-
-# 2. Set up env
-cp .env.example .env
-# fill in DATABASE_URL, EXA_API_KEY, OPENAI_API_KEY, etc.
-
-# 3. Push the DB schema (one-time, dev only)
+cp .env.example .env         # set DATABASE_URL to your local Postgres
 pnpm --filter @workspace/db run push
-
-# 4. Run the API + frontend in two terminals
 pnpm --filter @workspace/api-server run dev        # port 5000
-pnpm --filter @workspace/hump-yard-intel run dev   # port 8080
+pnpm --filter @workspace/hump-yard-intel run dev   # port 8080 (separate terminal)
+```
 
-# 5. Run the eval gate (21/21 green)
+## Eval gate
+
+```bash
 node ./node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs scripts/eval-gate.ts
+# 21/21 GREEN
 ```
 
 ## What this is (one paragraph)
