@@ -31,6 +31,41 @@ in v1 for the W35 cutover — flagged for gating in v1.1.
 
 ## v1 — gated by single-user basic auth
 
+### Auth (token-based, v1.1)
+
+| Method | Path | Purpose | Auth |
+|---|---|---|---|
+| `POST` | `/api/v1/auth/login` | Exchange username + password for a session token | Public (rate-limited 5/15min/IP) |
+| `POST` | `/api/v1/auth/logout` | Destroy the current session | Gated |
+| `GET`  | `/api/v1/auth/me` | Whoami + session expiry | Gated |
+| `GET`  | `/api/v1/auth/sessions` | List active sessions (admin) | Gated |
+
+**Three auth modes supported in priority order:**
+1. `Authorization: Bearer <token>` (preferred)
+2. `Cookie: decel_session=<token>` (set on login, HttpOnly, Secure in prod)
+3. `Authorization: Basic <b64>` (backward compat, curl-friendly)
+
+**Login body**:
+```json
+{ "username": "cassin", "password": "..." }
+```
+
+**Login response**:
+```json
+{
+  "token": "abc123...",
+  "expires_at": "2026-08-29T20:00:00Z",
+  "user": "cassin"
+}
+```
+
+**Password storage**:
+- `AUTH_PASS_HASH` (preferred): scrypt hash. Generate with `pnpm --filter @workspace/api-server run hash-password "your-plain-password"`.
+- `AUTH_PASS` (legacy): plaintext. Only works in dev. Refuses to work in `NODE_ENV=production`.
+- `DISABLE_AUTH=true`: short-circuits everything. **Dev only.**
+
+Token TTL: 7 days, sliding window (refreshed on every request). Sessions stored in the `sessions` table as SHA-256 hashes — the raw token is never persisted.
+
 ### Dossiers (Epic 2)
 
 | Method | Path | Purpose |

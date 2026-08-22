@@ -5,9 +5,9 @@ reference docs for anyone touching the code.
 
 | File | What's in it |
 |---|---|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | **Start here.** End-to-end Mermaid diagrams: system, request lifecycle, trust gate, data model, auth flow, deployment, metric loop, slip-call decision tree |
 | [API.md](./API.md) | Every endpoint — path, method, auth, body, response |
 | [DATABASE.md](./DATABASE.md) | Every table — columns, types, indexes, what they store |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | How data flows from request → DB → UI |
 | [ENV.md](./ENV.md) | Every env var — what it's for, when to set it |
 | [SPRINT.md](./SPRINT.md) | Sprint plan + scope cuts + open gaps |
 | [DECISIONS.md](./DECISIONS.md) | Open contract gaps + what to do about them |
