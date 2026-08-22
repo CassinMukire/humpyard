@@ -44,7 +44,21 @@ export const SearchCountryResponse = zod.object({
   "organisation": zod.string().describe('Railway authority or ministry'),
   "whyRelevant": zod.string().describe('One-line explanation of why this person matters for BD'),
   "linkedinUrl": zod.string().describe('Pre-filled LinkedIn people search URL'),
-  "confidence": zod.enum(['Named & verified', 'Role known, name uncertain', 'Role inferred'])
+  "confidence": zod.enum(['Named & verified', 'Role known, name uncertain', 'Role inferred']),
+  // Cassin's correction 2026-08-22: topics of interest populated by
+  // /api/v1/people/:id/enrich (LinkedIn enrichment). Optional because the
+  // legacy /api/search/country route does not populate it.
+  "interests": zod.array(zod.object({
+    "kind": zod.enum(['role_change', 'project', 'public_statement', 'conference', 'publication', 'other']),
+    "summary": zod.string(),
+    "fact": zod.object({
+      "value": zod.string(),
+      "source_url": zod.string(),
+      "retrieved_at": zod.string(),
+      "confidence": zod.enum(['V', 'O', 'I']),
+      "verified_by": zod.enum(['rule', 'human', 'human-import', 'doc-import']).nullable()
+    })
+  })).optional().describe('Topics of interest — populated by LinkedIn enrichment (Cassin correction 2026-08-22)')
 })).describe('Structured key contacts with LinkedIn URLs'),
   "sources": zod.array(zod.object({
   "url": zod.string(),
@@ -65,21 +79,13 @@ export const GetCountriesResponse = zod.object({
 })
 
 
-/**
- * @summary Generate a personalised outreach message for a contact
- */
-export const GenerateOutreachBody = zod.object({
-  "contactName": zod.string().nullish(),
-  "title": zod.string(),
-  "organisation": zod.string(),
-  "country": zod.string(),
-  "yards": zod.array(zod.string()).optional(),
-  "language": zod.string().optional().describe('Language code: \'en\' (default), \'de\', \'fr\', \'ru\', \'zh\', \'pl\', etc.')
-})
-
-export const GenerateOutreachResponse = zod.object({
-  "message": zod.string(),
-  "language": zod.string()
-})
+// NOTE: GenerateOutreachBody / GenerateOutreachResponse removed on
+// 2026-08-22 per Cassin's correction. The tool no longer generates
+// personalised messages. The corresponding /search/outreach route and
+// the "Generate Outreach" button in the UI are also gone.
+//
+// In their place: /api/v1/people/:id/enrich surfaces each contact's
+// topics of interest (role changes, projects, statements, conferences).
+// The operator writes the message.
 
 

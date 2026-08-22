@@ -6,11 +6,12 @@
 // =============================================================================
 
 import { Router } from "express";
-import { requireAuth } from "../../middlewares/auth.js";
+import { requireAuth } from "../../middlewares/auth";
 import dossiersRouter from "./dossiers";
 import reviewQueueRouter from "./review-queue";
 import battleCardsRouter from "./battle-cards";
 import mondaySyncRouter from "./monday-sync";
+import linkedinRouter from "./linkedin";
 
 const router = Router();
 
@@ -21,5 +22,6 @@ router.use(dossiersRouter);
 router.use(reviewQueueRouter);
 router.use(battleCardsRouter);
 router.use(mondaySyncRouter);
+router.use(linkedinRouter);
 
 export default router;

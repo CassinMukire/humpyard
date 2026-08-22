@@ -21,9 +21,11 @@ in v1 for the W35 cutover — flagged for gating in v1.1.
 | `GET`  | `/api/healthz` | Health check |
 | `GET`  | `/api/search/countries` | List of pre-loaded countries for the scanner |
 | `POST` | `/api/search/country` | Run an Exa-powered country scan |
-| `POST` | `/api/search/outreach` | Generate a 3-sentence cold outreach message |
 
 > These power the existing Target Scanner + Global Radar UI. Not gated.
+>
+> **Removed 2026-08-22:** `POST /api/search/outreach` — the tool no longer
+> generates personalised messages. See `docs/DECISIONS.md` for context.
 
 ---
 
@@ -140,6 +142,35 @@ curl -u $AUTH_USER:$AUTH_PASS \
 |---|---|---|
 | `POST` | `/api/v1/monday/push/person/:id` | Push one person to Monday People board |
 | `GET`  | `/api/v1/monday/health` | Token configured? board IDs? people count? |
+
+### LinkedIn enrichment (§12.5.5, Cassin's correction 2026-08-22)
+
+Automated public-profile enrichment via a data-provider API (v1: Proxycurl).
+Fetches the minimal field set (name, role, org, profile URL) + recent
+role changes, projects, public statements, conference appearances. Each
+item is wrapped in a SourcedFact and appended to the person's
+`interests` list.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/v1/people/:id/enrich` | Run enrichment for one person. Body: `{ profile_url? }` (uses stored `linkedin_url` if omitted) |
+| `GET`  | `/api/v1/people/enrich/health` | Provider configured? |
+
+**Without `PROXYCURL_API_KEY`**, the enrich route returns `402 Payment
+Required` with the fix instruction — the route never crashes the server.
+
+**Enrich body**:
+```json
+{ "profile_url": "https://www.linkedin.com/in/jane-doe" }
+```
+
+**Enrich response**:
+```json
+{
+  "person": { ... full Person record with new interests ... },
+  "provider": "proxycurl"
+}
+```
 
 **Push result**:
 ```json

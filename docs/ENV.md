@@ -24,6 +24,7 @@ serves both the API at `/api/*` and the built frontend at `/*`.
 | `DISABLE_AUTH` | dev only | Set to `"true"` to skip basic auth. NEVER in production. | `"false"` |
 | `MONDAY_API_TOKEN` | yes (for monday sync) | monday.com API token. People push is `skipped_no_token` without it. | — |
 | `MONDAY_BOARD_PEOPLE_ID` | yes (for monday sync) | Numeric ID of the Monday People board. | `PENDING_BOARD_ID` |
+| `PROXYCURL_API_KEY` | yes (for LinkedIn enrichment) | Proxycurl Bearer token. Without it, `/api/v1/people/:id/enrich` returns 402 Payment Required. | — |
 | `SNAPSHOTS_DIR` | no | Where raw source snapshots are cached. | `data/snapshots` |
 | `SNAPSHOT_STORE_URL` | no | TBD — local FS in v1, swappable to S3/R2/GCS later. | — |
 | `PORT` | no | API server port. | `5000` |

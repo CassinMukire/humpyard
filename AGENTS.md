@@ -99,16 +99,43 @@ A fact with no resolvable source **cannot render** in a dossier. Hard rule.
 
 ## Open contract gaps (need owner)
 
-| # | Gap | Owner |
+**All 8 signed off 2026-08-22.** Full decisions in [`docs/DECISIONS.md`](./docs/DECISIONS.md#open-contract-gaps).
+
+| # | Gap | Decision (Aug 22) |
 |---|---|---|
-| 1 | Auth scope = single-user (Cassin only) for v1? | Cassin |
-| 2 | Voice capture: native voice-memo + manual attach (my pick) vs server Whisper | Cassin |
-| 3 | Global Radar: disable v1, or gate extraction? | Builder + Cassin |
-| 4 | Snapshot storage choice (S3-compatible? Cloudflare R2? GCS? local FS?) + EU/EEA jurisdiction | Cassin + Builder |
-| 5 | Alias table owner + file location | Cassin |
-| 6 | monday.com DPA signed, workspace perms, boards provisioned | Hitank + Cassin |
-| 7 | Meeting-capture in or out scope | Cassin |
-| 8 | OIU corpus files (Z1.2/Z1.4/Z3/Z5/Z10/Z11/Z12 + Business Sweden mapping + beslutsunderlag + Konkurrentkarta + SunTzu + Säljramverk) into repo | **Hitank — chase this week** |
+| 1 | Auth scope | Single-user basic auth (Cassin only). Multi-user in October. |
+| 2 | Voice capture | Native voice-memo + manual text log. Whisper is P2. |
+| 3 | Global Radar | Gate extraction: tier+summary only for watchlist countries. Full extraction only for Poland + explicitly promoted scans. |
+| 4 | Snapshot storage | Local FS in v1 (`data/snapshots/`). S3-compatible bucket in EU/EEA swapped in at staging-deploy time. |
+| 5 | Alias table | Builder seeds 5+ canonical orgs. Cassin owns ongoing curation. `data/aliases.yaml`. |
+| 6 | monday.com DPA | Hitank chases; Cassin creates the People board. |
+| 7 | Meeting-capture | Out for v1. Facts come from corpus + Exa + LinkedIn enrichment, not from Cassin's memory. |
+| 8 | OIU corpus | Hitank chases this week — W35 Poland demo depends on it. |
+
+## Cassin's corrections (2026-08-22) — APPLIED
+
+1. **Removed: personalised first messages.** The tool no longer generates cold outreach. Instead, `/api/v1/people/:id/enrich` (LinkedIn) populates each contact's `interests: PersonInterest[]` — role changes, projects, public statements, conference appearances. **The operator writes the message.**
+2. **Approved: automated LinkedIn enrichment.** Public-profile data only, via a data-provider API (we picked **Proxycurl** — ~$0.04–0.10/profile). Pluggable via `LinkedInProvider` interface. GDPR Art. 14 duties per §12.5.2 apply.
+
+## Hard cost ceiling (signed off)
+
+**$200/month total** (LLM + hosting + LinkedIn provider). Alert at 80% = $160. See `docs/DECISIONS.md` for the line-item estimate.
+
+## Fair-week support (signed off)
+
+- **Sep 18**: static offline bundle on Cassin's phone.
+- **Sep 21**: smoke test on messe/roaming network.
+- **Sep 21–25**: builder on-call per agreed response SLA.
+
+## W34 answers (Cassin asked for these in writing)
+
+| # | Question | Answer |
+|---|---|---|
+| 1 | Stack summary — reuse vs rebuild | Reuse: api-server (search, dossiers, review-queue, battle-cards, monday-sync, linkedin), hump-yard-intel UI, all Drizzle schemas. Rebuild: nothing in W34. Net new: trust-layer, linkedin-provider, review queue, eval harness, golden sets, PWA spike. |
+| 2 | LLM choice + cost | **gpt-4.1** ($2.50/M in, $10/M out) for extraction + **gpt-4.1-mini** ($0.40/M in, $1.60/M out) for re-classification. **No LLM in battle mode** (§11.4 — pre-rendered cards only). v1 cost estimate: **$5–15/month** for LLM at weekly scan cadence across 3 dossier markets. Hard cap = $200/month total. |
+| 3 | Snapshot + correction storage | Local FS in v1 (`data/snapshots/`, mounted as a named volume in `docker-compose.yml`). Offsite backup is Hitank's job per §12.6. Correction log lives in the `corrections` Postgres table — same DB as the rest, same backup story. |
+| 4 | Hosting/security | **Hetzner Cloud CX22, Frankfurt region** (EU/EEA per §12.5). Single-user basic auth in v1 (Cassin only). HTTPS terminated by a Caddy reverse proxy in front. All v1 routes (gated). API tokens server-side via env vars. DB password required at first query, not at import. |
+| 5 | LinkedIn enrichment provider | **Proxycurl** (now part of NimbleWay) — public-profile data only, ~$0.04–0.10/profile. Pluggable via `LinkedInProvider` interface so we can swap to Apollo.io / People Data Labs later. Env var: `PROXYCURL_API_KEY`. Without it: clean 402 Payment Required, no crash. Provider name recorded on `import_meta.source_ref` for each fact. GDPR Art. 14 covered by §12.5.2. |
 
 ## How to run
 

@@ -47,6 +47,28 @@ export interface KeyContact {
   /** Pre-filled LinkedIn people search URL */
   linkedinUrl: string;
   confidence: KeyContactConfidence;
+  /**
+   * Topics of interest to talk about. Populated by /api/v1/people/:id/enrich
+   * (LinkedIn enrichment per §12.5.5). Optional because the legacy
+   * /api/search/country route does not populate it. Cassin's correction
+   * 2026-08-22: humans write the message; the tool tells them what to
+   * talk about.
+   */
+  interests?: KeyContactInterest[];
+}
+
+export interface KeyContactInterest {
+  kind: "role_change" | "project" | "public_statement" | "conference" | "publication" | "other";
+  summary: string;
+  fact: KeyContactInterestFact;
+}
+
+export interface KeyContactInterestFact {
+  value: string;
+  source_url: string;
+  retrieved_at: string;
+  confidence: "V" | "O" | "I";
+  verified_by: "rule" | "human" | "human-import" | "doc-import" | null;
 }
 
 /**

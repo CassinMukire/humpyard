@@ -67,30 +67,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/CountryList"
 
-  /search/outreach:
-    post:
-      operationId: generateOutreach
-      tags: [search]
-      summary: Generate a personalised outreach message for a contact
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/OutreachInput"
-      responses:
-        "200":
-          description: Generated outreach message
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OutreachResult"
-        "500":
-          description: Generation error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+  # NOTE: /search/outreach was removed on 2026-08-22 per Cassin's correction.
+  # The tool no longer generates personalised messages. Instead,
+  # /api/v1/people/:id/enrich surfaces each contact's topics of interest
+  # (role changes, projects, statements, conferences) so the operator can
+  # write their own message. See §12.5.5 of the v1.4 spec.
 
 components:
   schemas:
@@ -242,39 +223,8 @@ components:
           items:
             type: string
 
-    OutreachInput:
-      type: object
-      required:
-        - country
-        - title
-        - organisation
-      properties:
-        contactName:
-          type: ["string", "null"]
-        title:
-          type: string
-        organisation:
-          type: string
-        country:
-          type: string
-        yards:
-          type: array
-          items:
-            type: string
-        language:
-          type: string
-          description: "Language code: 'en' (default), 'de', 'fr', 'ru', 'zh', 'pl', etc."
-
-    OutreachResult:
-      type: object
-      required:
-        - message
-        - language
-      properties:
-        message:
-          type: string
-        language:
-          type: string
+    # OutreachInput / OutreachResult removed on 2026-08-22 per Cassin's
+    # correction. The tool no longer generates personalised messages.
 
     ErrorResponse:
       type: object

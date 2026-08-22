@@ -203,6 +203,30 @@ export const RoleHistoryEntrySchema = z.object({
 });
 export type RoleHistoryEntry = z.infer<typeof RoleHistoryEntrySchema>;
 
+// Per Cassin's correction (Aug 22): for each key contact, the tool surfaces
+// what topics this person likely cares about — recent role changes, projects
+// they're tied to, public statements, conference appearances. Every entry is
+// a SourcedFact. We do NOT generate outreach messages for the contact
+// (humans write their own messages) — we tell the operator what the person
+// is interested in, so they can write a real one themselves.
+export const PersonInterestSchema = z.object({
+  // One of: "role_change" · "project" · "public_statement" · "conference" · "publication"
+  // "other"
+  kind: z.enum([
+    "role_change",
+    "project",
+    "public_statement",
+    "conference",
+    "publication",
+    "other",
+  ]),
+  // Short human-readable label, e.g. "Spoke at InnoTrans 2025 about retarder safety"
+  summary: z.string(),
+  // The SourcedFact envelope — every interest is sourced and confidence-tagged
+  fact: SourcedFactSchema,
+});
+export type PersonInterest = z.infer<typeof PersonInterestSchema>;
+
 export const PersonSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -211,19 +235,35 @@ export const PersonSchema = z.object({
   org_id: z.string().nullable(),
   role: z.string(),
   role_history: z.array(RoleHistoryEntrySchema),
+  // LinkedIn-style profile URL (auto-populated by /api/v1/people/:id/enrich
+  // when a data-provider API is configured). See §12.5.5.
+  linkedin_url: z.string().url().nullable(),
+  // Per Cassin's correction (Aug 22): topics of interest — each is a SourcedFact.
+  // Replaces the "generate outreach" feature: humans write messages, the tool
+  // tells them what to talk about.
+  interests: z.array(PersonInterestSchema).default([]),
   relationship_owner: z.string().nullable(),
   relationship_status: RelationshipStatusSchema,
   // Per US-3.1: machine-parsed from trusted docs (e.g. 92 PLK contacts from
   // xlsx annexes) = doc-import with a pointer to the annex. human-import = a
-  // human eyeballed the row.
+  // human eyeballed the row. LinkedIn enrichment = "linkedin-enrichment" with
+  // the provider API as source_ref.
   import_meta: z
     .object({
-      method: z.enum(["doc-import", "human-import", "scrape"]),
+      method: z.enum([
+        "doc-import",
+        "human-import",
+        "scrape",
+        "linkedin-enrichment",
+      ]),
       source_ref: z.string(), // e.g. "OIU_Z1.4.xlsx#sheet=contacts"
       imported_by: z.string().nullable(),
       imported_at: z.string(),
     })
     .nullable(),
+  // §12.5.3 retention: persons with no engagement in 24 months → flagged
+  // for purge. last_engagement_at drives that flag.
+  last_engagement_at: z.string().nullable(),
   monday_item_id: z.string().nullable(),
   sources: z.array(V1SourceLinkSchema),
   created_at: z.string(),

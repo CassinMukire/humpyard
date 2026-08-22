@@ -78,15 +78,37 @@ Indexes: unique `match_key`, `type`, `innotrans_target`.
 | `org_id` | text | (no FK; lazy link) |
 | `role` | text | current title |
 | `role_history` | jsonb | array of past roles |
+| `linkedin_url` | text | public profile URL, populated by `/api/v1/people/:id/enrich` |
+| `interests` | jsonb | array of `PersonInterest` — topics of interest to talk about. Each interest is a SourcedFact (kind, summary, source_url, retrieved_at, confidence, verified_by) |
 | `relationship_owner` | text | Cassin / "engine" / null |
 | `relationship_status` | relationship_status_enum | `none` · `identified` · `contacted` · `active` · `strong` |
-| `import_meta` | jsonb | `{method, source_ref, imported_by, imported_at}` |
+| `import_meta` | jsonb | `{method, source_ref, imported_by, imported_at}`; method ∈ `doc-import` · `human-import` · `scrape` · `linkedin-enrichment` |
+| `last_engagement_at` | timestamptz | updated when a Play is created, meeting logged, or monday reports activity. Drives the §12.5.3 24-month retention timer. |
 | `monday_item_id` | text | |
 | `sources` | jsonb | |
 | `created_at` / `updated_at` | timestamptz | |
 
 **§12.5 GDPR scope**: business contact data only. NO criminal/corruption facts
 attached to Person entities — those live at Market/Org level, unnamed.
+
+**`PersonInterest` shape**:
+```typescript
+{
+  kind: "role_change" | "project" | "public_statement" | "conference" | "publication" | "other",
+  summary: "Spoke at InnoTrans 2025 about wagon retarder safety",
+  fact: {  // SourcedFact envelope
+    value: "...",
+    source_url: "https://...via=proxycurl",
+    retrieved_at: "2026-08-22T...",
+    confidence: "V" | "O" | "I",
+    verified_by: "rule" | "human" | ...
+  }
+}
+```
+
+**LinkedIn enrichment** (§12.5.5) populates this list automatically. The
+provider's name is recorded on `import_meta.source_ref` so each fact can
+be traced back to its source.
 
 ### `plays` — sales action items
 

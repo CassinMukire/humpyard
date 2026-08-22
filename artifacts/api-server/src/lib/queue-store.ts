@@ -87,9 +87,12 @@ function rowToPerson(r: schema.PersonRow): Person {
     org_id: r.org_id ?? null,
     role: r.role,
     role_history: r.role_history as Person["role_history"],
+    linkedin_url: r.linkedin_url ?? null,
+    interests: (r.interests as Person["interests"]) ?? [],
     relationship_owner: r.relationship_owner ?? null,
     relationship_status: r.relationship_status,
     import_meta: (r.import_meta as Person["import_meta"]) ?? null,
+    last_engagement_at: r.last_engagement_at?.toISOString() ?? null,
     monday_item_id: r.monday_item_id ?? null,
     sources: r.sources as Person["sources"],
     created_at: r.created_at.toISOString(),
@@ -343,9 +346,14 @@ export async function upsertPerson(p: Person): Promise<Person> {
       org_id: p.org_id,
       role: p.role,
       role_history: p.role_history,
+      linkedin_url: p.linkedin_url,
+      interests: p.interests,
       relationship_owner: p.relationship_owner,
       relationship_status: p.relationship_status,
       import_meta: p.import_meta,
+      last_engagement_at: p.last_engagement_at
+        ? new Date(p.last_engagement_at)
+        : null,
       monday_item_id: p.monday_item_id,
       sources: p.sources,
     })
@@ -356,9 +364,14 @@ export async function upsertPerson(p: Person): Promise<Person> {
         org_id: p.org_id,
         role: p.role,
         role_history: p.role_history,
+        linkedin_url: p.linkedin_url,
+        interests: p.interests,
         relationship_owner: p.relationship_owner,
         relationship_status: p.relationship_status,
         import_meta: p.import_meta,
+        last_engagement_at: p.last_engagement_at
+          ? new Date(p.last_engagement_at)
+          : null,
         monday_item_id: p.monday_item_id,
         sources: p.sources,
         updated_at: new Date(),
@@ -375,6 +388,34 @@ export async function getPerson(id: string): Promise<Person | undefined> {
 export async function listPersonsByOrg(orgId: string): Promise<Person[]> {
   const rows = await db.select().from(schema.persons).where(eq(schema.persons.org_id, orgId));
   return rows.map(rowToPerson);
+}
+
+/**
+ * §12.5.3 retention: persons with no engagement in 24 months are flagged
+ * for purge. We don't hard-delete here — that requires the operator's
+ * confirmation (and the matching monday.com delete). This function just
+ * surfaces the candidates. Returns IDs of stale persons.
+ */
+export async function flagStalePersonsForPurge(): Promise<string[]> {
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 24);
+  const rows = await db
+    .select({ id: schema.persons.id })
+    .from(schema.persons)
+    .where(lte(schema.persons.last_engagement_at, cutoff));
+  return rows.map((r) => r.id);
+}
+
+/**
+ * §12.5.3: bump last_engagement_at for a person. Called when a Play is
+ * created for them, a meeting is logged with them, or monday reports
+ * activity. Keeps the retention timer accurate.
+ */
+export async function touchPersonEngagement(personId: string): Promise<void> {
+  await db
+    .update(schema.persons)
+    .set({ last_engagement_at: new Date(), updated_at: new Date() })
+    .where(eq(schema.persons.id, personId));
 }
 
 // -----------------------------------------------------------------------------
