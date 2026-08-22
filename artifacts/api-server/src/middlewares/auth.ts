@@ -1,80 +1,52 @@
 // =============================================================================
-// Single-user basic auth (v1, Cassin only)
+// Auth middleware — v1.1
 //
-// Spec reference: §11.8, §12.1 (single-user in v1; multi-user in October)
+// v1 = single user (Cassin). Three auth modes, in priority order:
+//   1. Bearer token (from /api/v1/auth/login) — preferred
+//   2. HttpOnly cookie `decel_session` — set on login
+//   3. HTTP Basic (AUTH_USER + AUTH_PASS_HASH or AUTH_PASS) — backward compat
 //
-// v1 = single user. AUTH_USER + AUTH_PASS env vars.
-// In dev, set DISABLE_AUTH=true to skip the gate entirely.
-// In prod, both AUTH_USER and AUTH_PASS MUST be set; otherwise 503.
-//
-// Every non-public endpoint is gated. The login UI is just the browser's
-// built-in basic-auth dialog (good enough for a single-user tool).
+// DISABLE_AUTH=true short-circuits everything (dev only).
+// In production, missing AUTH_USER / AUTH_PASS_HASH returns 503.
 // =============================================================================
 
 import type { RequestHandler } from "express";
+import {
+  verifyPassword,
+  isHash,
+  getSession,
+  touchSession,
+  logAuthEvent,
+} from "../lib/auth";
 
-let warned = false;
+let warnedDevBypass = false;
+let warnedNotConfigured = false;
 
-function warnOnce(message: string) {
-  if (warned) return;
-  warned = true;
+function warnOnce(label: string, message: string): void {
+  if (label === "dev_bypass" && warnedDevBypass) return;
+  if (label === "not_configured" && warnedNotConfigured) return;
+  if (label === "dev_bypass") warnedDevBypass = true;
+  if (label === "not_configured") warnedNotConfigured = true;
   // eslint-disable-next-line no-console
   console.warn(`[auth] ${message}`);
 }
 
-export const requireAuth: RequestHandler = (req, res, next) => {
-  // Dev escape hatch
-  if (process.env["DISABLE_AUTH"] === "true") {
-    warnOnce("DISABLE_AUTH=true — auth gate is OFF. Do not use in production.");
-    return next();
-  }
+function setAuthOnReq(req: unknown, user: string, expiresAt?: Date): void {
+  (req as Record<string, unknown>)["authUser"] = user;
+  if (expiresAt) (req as Record<string, unknown>)["authExpiresAt"] = expiresAt;
+}
 
-  const user = process.env["AUTH_USER"];
-  const pass = process.env["AUTH_PASS"];
-
-  if (!user || !pass) {
-    return res.status(503).json({
-      error:
-        "Auth not configured. Set AUTH_USER and AUTH_PASS, or DISABLE_AUTH=true for dev.",
-    });
-  }
-
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith("Basic ")) {
-    res.set(
-      "WWW-Authenticate",
-      'Basic realm="DECEL Intel", charset="UTF-8"',
-    );
-    return res.status(401).json({ error: "Auth required" });
-  }
-
-  let decoded: string;
+function extractBasicAuth(authHeader: string | undefined): { user: string; pass: string } | null {
+  if (!authHeader || !authHeader.startsWith("Basic ")) return null;
   try {
-    decoded = Buffer.from(auth.slice(6), "base64").toString("utf8");
+    const decoded = Buffer.from(authHeader.slice(6), "base64").toString("utf8");
+    const colon = decoded.indexOf(":");
+    if (colon < 0) return null;
+    return { user: decoded.slice(0, colon), pass: decoded.slice(colon + 1) };
   } catch {
-    return res.status(401).json({ error: "Invalid Authorization header" });
+    return null;
   }
-
-  const colon = decoded.indexOf(":");
-  const u = colon >= 0 ? decoded.slice(0, colon) : decoded;
-  const p = colon >= 0 ? decoded.slice(colon + 1) : "";
-
-  // Constant-time comparison
-  const userOk = safeEqual(u, user);
-  const passOk = safeEqual(p, pass);
-
-  if (!userOk || !passOk) {
-    res.set(
-      "WWW-Authenticate",
-      'Basic realm="DECEL Intel", charset="UTF-8"',
-    );
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
-
-  // Attach the authenticated user for downstream handlers (logging, monday push)
-  (req as unknown as { authUser: string }).authUser = u;
-  next();
-};
+}
 
 function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -84,3 +56,94 @@ function safeEqual(a: string, b: string): boolean {
   }
   return mismatch === 0;
 }
+
+function extractBearerOrCookieToken(req: { headers: { authorization?: string; cookie?: string } }): string | null {
+  const auth = req.headers.authorization;
+  if (auth && auth.startsWith("Bearer ")) return auth.slice(7).trim();
+  const cookieHeader = req.headers.cookie;
+  if (cookieHeader) {
+    const cookies = cookieHeader.split(";").map((c) => c.trim());
+    for (const c of cookies) {
+      if (c.startsWith("decel_session=")) return c.slice("decel_session=".length);
+    }
+  }
+  return null;
+}
+
+export const requireAuth: RequestHandler = async (req, res, next) => {
+  // 1. Dev escape hatch
+  if (process.env["DISABLE_AUTH"] === "true") {
+    warnOnce(
+      "dev_bypass",
+      "DISABLE_AUTH=true — auth gate is OFF. Do not use in production.",
+    );
+    setAuthOnReq(req, "dev-bypass", new Date(Date.now() + 24 * 60 * 60 * 1000));
+    next();
+    return;
+  }
+
+  // 2. Check for bearer/cookie token
+  const token = extractBearerOrCookieToken(req);
+  if (token) {
+    const session = await getSession(token);
+    if (session) {
+      // Sliding window — touch the session
+      await touchSession(token);
+      setAuthOnReq(req, session.userId, session.expiresAt);
+      next();
+      return;
+    }
+    // Token invalid or expired. Fall through to basic auth below.
+    await logAuthEvent({
+      event: "token_invalid",
+      user: "anonymous",
+      ip: req.ip ?? null,
+      userAgent: req.headers["user-agent"] ?? null,
+    });
+  }
+
+  // 3. HTTP Basic (backward compat / curl-friendly)
+  const basic = extractBasicAuth(req.headers.authorization);
+  if (basic) {
+    const expectedUser = process.env["AUTH_USER"] ?? null;
+    const expectedHash = process.env["AUTH_PASS_HASH"] ?? null;
+    const expectedPlain = process.env["AUTH_PASS"] ?? null;
+    if (!expectedUser || (!expectedHash && !expectedPlain)) {
+      warnOnce(
+        "not_configured",
+        "Auth not configured. Set AUTH_USER + AUTH_PASS_HASH (preferred) or AUTH_PASS (dev only).",
+      );
+      res.status(503).json({ error: "Auth not configured" });
+      return;
+    }
+    if (!safeEqual(basic.user, expectedUser)) {
+      res.set("WWW-Authenticate", 'Basic realm="DECEL Intel", charset="UTF-8"');
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+    let passOk = false;
+    if (expectedHash && isHash(expectedHash)) {
+      passOk = verifyPassword(basic.pass, expectedHash);
+    } else if (expectedPlain && process.env["NODE_ENV"] !== "production") {
+      warnOnce(
+        "dev_bypass",
+        "AUTH_PASS is plaintext. Switch to AUTH_PASS_HASH in production.",
+      );
+      passOk = safeEqual(basic.pass, expectedPlain);
+    } else {
+      passOk = false;
+    }
+    if (!passOk) {
+      res.set("WWW-Authenticate", 'Basic realm="DECEL Intel", charset="UTF-8"');
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+    setAuthOnReq(req, expectedUser, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+    next();
+    return;
+  }
+
+  // 4. No credentials at all
+  res.set("WWW-Authenticate", 'Basic realm="DECEL Intel", charset="UTF-8"');
+  res.status(401).json({ error: "Auth required" });
+};

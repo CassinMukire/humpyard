@@ -21,3 +21,5 @@ export * from "./review-queue";
 export * from "./battle-cards";
 export * from "./doctrine-revisions";
 export * from "./meetings";
+export * from "./sessions";
+export * from "./audit-log";
