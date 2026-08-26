@@ -12,7 +12,7 @@ if (!databaseUrl) {
 }
 
 export default defineConfig({
-  schema: path.join(__dirname, "./src/schema/index.ts"),
+  schema: "./src/schema/index.ts",
   dialect: "postgresql",
   dbCredentials: {
     url: databaseUrl ?? "postgres://localhost:5432/placeholder",

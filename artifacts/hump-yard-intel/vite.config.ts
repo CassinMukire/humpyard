@@ -36,6 +36,16 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    // Proxy /api/* to the api-server. In dev, the frontend runs on 8080
+    // and the api-server runs on 5000; the proxy makes them look like
+    // the same origin to the browser.
+    proxy: {
+      "/api": {
+        target: process.env["API_PROXY_TARGET"] ?? "http://localhost:5000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   preview: {
     port,
