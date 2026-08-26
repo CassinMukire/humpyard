@@ -629,7 +629,7 @@ function seed(): void {
 // Public API — mirrors queue-store.ts
 // -----------------------------------------------------------------------------
 
-export function resetAllStores(): void {
+export async function resetAllStores(): Promise<void> {
   markets.clear();
   yards.clear();
   orgs.clear();

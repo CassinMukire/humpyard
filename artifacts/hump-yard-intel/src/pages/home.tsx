@@ -1,8 +1,10 @@
 import React, { useState } from "react";
+import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CountryScanner } from "@/components/CountryScanner";
 import { GlobalRadar } from "@/components/GlobalRadar";
-import { Radar, Crosshair } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Radar, Crosshair, FileText, Inbox, Swords } from "lucide-react";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("scanner");
@@ -12,7 +14,7 @@ export default function Home() {
 
       {/* Header */}
       <header className="border-b border-border bg-card z-10 sticky top-0">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
 
           {/* Logo + app name */}
           <div className="flex items-center gap-4">
@@ -28,6 +30,28 @@ export default function Home() {
             >
               Hump Yard <span className="text-primary">Intel</span>
             </span>
+          </div>
+
+          {/* V1 Briefing quick links */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mr-1">
+              V1 Briefing
+            </span>
+            <Link href="/dossiers">
+              <Button variant="ghost" size="sm" className="text-xs font-mono h-8">
+                <FileText className="w-3.5 h-3.5 mr-1" /> Dossiers
+              </Button>
+            </Link>
+            <Link href="/review-queue">
+              <Button variant="ghost" size="sm" className="text-xs font-mono h-8">
+                <Inbox className="w-3.5 h-3.5 mr-1" /> Review
+              </Button>
+            </Link>
+            <Link href="/battle-cards">
+              <Button variant="ghost" size="sm" className="text-xs font-mono h-8">
+                <Swords className="w-3.5 h-3.5 mr-1" /> Battle Cards
+              </Button>
+            </Link>
           </div>
 
           {/* Status indicator */}

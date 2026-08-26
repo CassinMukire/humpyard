@@ -1,7 +1,8 @@
 export * from "./generated/api";
 export * from "./generated/api.schemas";
-export { setBaseUrl, setAuthTokenGetter } from "./custom-fetch";
-export type { AuthTokenGetter } from "./custom-fetch";
+export { setBaseUrl, setAuthTokenGetter, customFetch } from "./custom-fetch";
+export { ApiError, ResponseParseError } from "./custom-fetch";
+export type { CustomFetchOptions, ErrorType, BodyType, AuthTokenGetter } from "./custom-fetch";
 
 // Re-export the v1 manual entity types (SourcedFact, Market, Yard, Org,
 // Person, PersonInterest, Play, etc.) so the UI can use them as props
