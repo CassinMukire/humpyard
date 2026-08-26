@@ -6,7 +6,7 @@
 
 import { Router } from "express";
 import { createHash } from "node:crypto";
-import { getPerson, listPersonsByOrg, upsertPerson } from "../../lib/queue-store";
+import { getPerson, listPersonsByOrg, upsertPerson } from "../../lib/store-factory";
 import type { Person } from "@workspace/api-zod";
 
 const router = Router();

@@ -10,7 +10,7 @@ import {
   upsertBattleCard,
   recordDoctrineRevision,
   listDoctrineRevisions,
-} from "../../lib/queue-store";
+} from "../../lib/store-factory";
 import { validateBody } from "../../middlewares/validate";
 import { BattleCardSchema, type BattleCard } from "@workspace/api-zod";
 

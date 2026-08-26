@@ -18,7 +18,7 @@ import { Router } from "express";
 import {
   getPerson,
   upsertPerson,
-} from "../../lib/queue-store";
+} from "../../lib/store-factory";
 import { getLinkedInProvider, buildSourceUrlForProvider } from "../../lib/linkedin-provider";
 import { validateBody } from "../../middlewares/validate";
 import { z } from "zod";

@@ -13,7 +13,7 @@ import {
   recordRejection,
   isRejectedContent,
   autoArchiveStaleQueueItems,
-} from "../../lib/queue-store";
+} from "../../lib/store-factory";
 
 const router = Router();
 

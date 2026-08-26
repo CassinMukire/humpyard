@@ -14,7 +14,7 @@ import {
   findOrgByMatchKey,
   listPersonsByOrg,
   listPlaysByMarket,
-} from "../../lib/queue-store";
+} from "../../lib/store-factory";
 import { validateBody } from "../../middlewares/validate";
 import { MarketSchema, type Market } from "@workspace/api-zod";
 
