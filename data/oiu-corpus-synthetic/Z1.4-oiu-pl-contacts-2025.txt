@@ -1,0 +1,57 @@
+================================================================================
+OIU — Office of Science and Innovation, Stockholm
+Polish Railway Authority Contact Map (Z1.4)
+File: Z1.4 — Detailed contact map for PKP PLK, SYSTRA, Axtone
+Retrieved: 2026-08-20
+================================================================================
+
+PRIMARY CONTACTS — PKP PLK (operator / authority)
+-----------------------------------------------
+
+Anna Kowalska
+Director of Infrastructure Investment, PKP Polskie Linie Kolejowe
+Role: controls the $2.3B capex programme, signs off on tender specs
+LinkedIn: linkedin.com/in/anna-kowalska-pkp
+Source: PKP PLK leadership page; TRAKO 2025 keynote speaker
+
+Tomasz Nowak
+Head of Procurement, Hump Yard Modernization Programme
+Role: lead procurement officer for the Idzikowice modernization tender
+LinkedIn: linkedin.com/in/tomasz-nowak-pkp
+Source: PKP PLK procurement directory; OIU interview Q2 2025
+
+Marta Wójcik
+Chief Engineer, Marshalling Yard Systems
+Role: technical authority on retarder specifications
+LinkedIn: linkedin.com/in/marta-wojcik-pkp
+Source: Rynek Kolejowy Q1 2026 publication; TRAKO 2025 workshop co-presenter
+
+SECONDARY CONTACTS — Axtone (competitor)
+----------------------------------------
+
+Piotr Kowalski
+Regional Sales Manager, Central Europe, Axtone
+Role: incumbent vendor lead, Axtone retarders installed at 6/10 top yards
+Source: Axtone corporate page; TRAKO 2025 keynote on Axtone installed base
+
+SECONDARY CONTACTS — SYSTRA (consultant / spec writer)
+------------------------------------------------------
+
+Julien Martin
+Senior Consultant, Rail Freight Europe, SYSTRA
+Role: spec-writing consultant on the PKP PLK Hump Yard Modernization programme
+Source: SYSTRA project page; author of 'European Hump Yard Spec Standards 2025'
+
+NOTES
+-----
+  - PKP PLK is the state-owned rail infrastructure manager — not PKP S.A.
+    (the holding company). The yards belong to PLK, not to PKP Cargo.
+  - The Idzikowice tender is the first major EU tender of 2026 — critical
+    for DECEL's first European reference site after Hallsberg.
+  - SYSTRA's 'European Hump Yard Spec Standards 2025' is referenced in
+    the PKP PLK Technical Reference. Submitting DECEL's specs into the
+    Q1 2027 update of that document is the 'win before the battle' play.
+
+================================================================================
+End of file.
+================================================================================

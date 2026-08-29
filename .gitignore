@@ -56,4 +56,5 @@ scripts/trash/
 # Runtime state — demo store snapshot + server logs
 artifacts/api-server/data/
 artifacts/hump-yard-intel/data/
+data/demo-store.json
 logs/

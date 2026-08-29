@@ -1,0 +1,320 @@
+# =============================================================================
+# aliases.yaml — cross-lingual org + yard name resolution
+# Spec reference: §12.3, DECISIONS C5 (Aug 22 sign-off).
+#
+# Owner: Cassin (product). Builder seeds from KNOWN_YARDS / OPERATOR_KEY_ROLES
+# (artifacts/api-server/src/routes/search.ts) + the demo seed. Cassin approves
+# merges before they land in the live trust-gate path.
+#
+# Format per entry:
+#   canonical:  The "official" name we use everywhere downstream
+#   match_key:  ASCII-normalized (diacritics stripped, lowercased) — used for
+#               unique dedupe in the orgs table
+#   type:       One of the OrgType enum (authority, operator, epc, consultant,
+#               financier, competitor, agent)
+#   market_ids: [array of market ids this org appears in, e.g. ["pl"]]
+#   aliases:    All known spellings / transliterations. Auto-merge to this
+#               canonical org happens when an inbound name matches one of
+#               these (after ASCII normalization). Mismatches land in the
+#               review queue as "possible alias of <canonical>".
+# =============================================================================
+
+# ---- Poland (PL) ----
+- canonical: PKP Polskie Linie Kolejowe
+  match_key: pkp polskie linie kolejowe
+  type: authority
+  market_ids: [pl]
+  aliases:
+    - "PKP PLK"
+    - "PKP PLK S.A."
+    - "Polskie Linie Kolejowe"
+    - "PLK"
+    - "PKP Cargo / PLK"
+
+- canonical: Axtone
+  match_key: axtone
+  type: competitor
+  market_ids: [pl]
+  aliases:
+    - "Axtone GmbH"
+    - "Axtone SA"
+    - "AXTONE"
+    - "Axtone retarder systems"
+
+- canonical: SYSTRA
+  match_key: systra
+  type: consultant
+  market_ids: [pl]
+  aliases:
+    - "SYSTRA SA"
+    - "Systra Group"
+    - "SYSTRA Group"
+
+# ---- Sweden (SE) — DECEL home market + reference site (Hallsberg) ----
+- canonical: Trafikverket
+  match_key: trafikverket
+  type: authority
+  market_ids: [se]
+  aliases:
+    - "Swedish Transport Administration"
+    - "TrV"
+    - "Trafikverket (Sweden)"
+
+- canonical: Green Cargo
+  match_key: green cargo
+  type: operator
+  market_ids: [se]
+  aliases:
+    - "Green Cargo AB"
+    - "TGOJ"
+
+# ---- Germany (DE) ----
+- canonical: DB Netz AG
+  match_key: db netz ag
+  type: authority
+  market_ids: [de]
+  aliases:
+    - "DB Netz"
+    - "Deutsche Bahn Netz"
+    - "DB Netz AG / Deutsche Bahn"
+
+# ---- Kazakhstan (KZ) — Middle Corridor ----
+- canonical: Kazakhstan Temir Zholy
+  match_key: kazakhstan temir zholy
+  type: operator
+  market_ids: [kz]
+  aliases:
+    - "KTZ"
+    - "KTZ NC"
+    - "Қазақстан Темір Жолы"
+    - "Kazakhstan Railways"
+    - "KTZ (National Company)"
+
+- canonical: UTY (Uzbekistan Temir Yollari)
+  match_key: uty
+  type: operator
+  market_ids: [uz]
+  aliases:
+    - "UTY"
+    - "O'zbekiston Temir Yo'llari"
+    - "Uzbekistan Railways"
+    - "Uzbekiston Temir Yullari"
+
+# ---- Czech Republic (CZ) ----
+- canonical: Správa železnic
+  match_key: sprava zeleznic
+  type: authority
+  market_ids: [cz]
+  aliases:
+    - "SŽDC"
+    - "Sprava zeleznic"
+    - "Czech Railway Infrastructure Administration"
+    - "ČD Cargo / SŽDC"
+
+# ---- Hungary (HU) ----
+- canonical: MÁV
+  match_key: mav
+  type: authority
+  market_ids: [hu]
+  aliases:
+    - "MÁV Hungarian State Railways"
+    - "MAV"
+
+# ---- Slovakia (SK) ----
+- canonical: ŽSR
+  match_key: zsr
+  type: authority
+  market_ids: [sk]
+  aliases:
+    - "ŽSR (Železnice Slovenskej republiky)"
+    - "ZSR"
+    - "Slovak Railways"
+    - "ZSSK Cargo"
+
+# ---- Russia (RU) ----
+- canonical: RZhD
+  match_key: rzhd
+  type: operator
+  market_ids: [ru]
+  aliases:
+    - "RZhD (Russian Railways)"
+    - "ОАО «РЖД»"
+    - "Russian Railways"
+    - "RZD"
+
+# ---- Romania (RO) ----
+- canonical: CFR SA
+  match_key: cfr sa
+  type: authority
+  market_ids: [ro]
+  aliases:
+    - "CFR Infrastructura"
+    - "Căile Ferate Romane"
+    - "Căile Ferate Române"
+    - "CFR Călători / CFR Marfă"
+
+# ---- Austria (AT) ----
+- canonical: ÖBB
+  match_key: obb
+  type: authority
+  market_ids: [at]
+  aliases:
+    - "ÖBB-Infrastruktur AG"
+    - "ÖBB Infrastructure"
+    - "OEBB"
+    - "Österreichische Bundesbahnen"
+
+# ---- Ukraine (UA) ----
+- canonical: Ukrzaliznytsia
+  match_key: ukrzaliznytsia
+  type: authority
+  market_ids: [ua]
+  aliases:
+    - "Ukrzaliznytsia (Ukrainian Railways)"
+    - "Укрзалізниця"
+    - "Ukrainian Railways"
+
+# ---- France (FR) ----
+- canonical: SNCF Réseau
+  match_key: sncf reseau
+  type: authority
+  market_ids: [fr]
+  aliases:
+    - "SNCF Reseau"
+    - "SNCF Réseau"
+    - "Reseau Ferre de France"
+    - "SNCF / SNCF Réseau"
+
+# ---- Netherlands (NL) ----
+- canonical: ProRail
+  match_key: prorail
+  type: authority
+  market_ids: [nl]
+  aliases:
+    - "ProRail B.V."
+    - "Prorail"
+    - "ProRail / NS"
+
+# ---- Belgium (BE) ----
+- canonical: Infrabel
+  match_key: infrabel
+  type: authority
+  market_ids: [be]
+  aliases:
+    - "Infrabel NV"
+    - "Infrabel / SNCB"
+
+# ---- Finland (FI) ----
+- canonical: Väylävirasto
+  match_key: vaylavirasto
+  type: authority
+  market_ids: [fi]
+  aliases:
+    - "Väylä"
+    - "Finnish Transport Infrastructure Agency"
+    - "Finrail / VR"
+
+# ---- Norway (NO) ----
+- canonical: Bane NOR
+  match_key: bane nor
+  type: authority
+  market_ids: [no]
+  aliases:
+    - "Bane NOR SF"
+    - "BaneNor"
+    - "Bane NOR / CargoNet"
+
+# ---- Denmark (DK) ----
+- canonical: Banedanmark
+  match_key: banedanmark
+  type: authority
+  market_ids: [dk]
+  aliases:
+    - "Banedanmark A/S"
+    - "Banedanmark / DSB"
+
+# ---- Switzerland (CH) ----
+- canonical: SBB
+  match_key: sbb
+  type: authority
+  market_ids: [ch]
+  aliases:
+    - "SBB CFF FFS"
+    - "Schweizerische Bundesbahnen"
+    - "SBB / Railcare"
+
+# ---- Italy (IT) ----
+- canonical: RFI
+  match_key: rfi
+  type: authority
+  market_ids: [it]
+  aliases:
+    - "Rete Ferroviaria Italiana"
+    - "RFI S.p.A."
+    - "RFI / Mercitalia"
+
+# ---- Spain (ES) ----
+- canonical: ADIF
+  match_key: adif
+  type: authority
+  market_ids: [es]
+  aliases:
+    - "ADIF (Administrador de Infraestructuras Ferroviarias)"
+    - "Administrador de Infraestructuras Ferroviarias"
+    - "ADIF / Renfe Mercancías"
+
+# ---- Turkey (TR) ----
+- canonical: TCDD
+  match_key: tcdd
+  type: authority
+  market_ids: [tr]
+  aliases:
+    - "TCDD Taşımacılık"
+    - "Türkiye Cumhuriyeti Devlet Demiryolları"
+    - "Turkish State Railways"
+
+# ---- China (CN) ----
+- canonical: China Railway
+  match_key: china railway
+  type: operator
+  market_ids: [cn]
+  aliases:
+    - "CR"
+    - "China Railway (CR)"
+    - "中国国家铁路集团"
+    - "China State Railway Group"
+
+# ---- India (IN) ----
+- canonical: Indian Railways
+  match_key: indian railways
+  type: operator
+  market_ids: [in]
+  aliases:
+    - "IR"
+    - "Indian Railways (IR)"
+
+# ---- Japan (JP) ----
+- canonical: JR Freight
+  match_key: jr freight
+  type: operator
+  market_ids: [jp]
+  aliases:
+    - "JR貨物"
+    - "Japan Freight Railway Company"
+
+# ---- Competitors (used in battle-card "recon" rows) ----
+- canonical: Knorr-Bremse
+  match_key: knorr bremse
+  type: competitor
+  market_ids: []
+  aliases:
+    - "Knorr-Bremse AG"
+    - "KB"
+
+- canonical: Voestalpine
+  match_key: voestalpine
+  type: competitor
+  market_ids: []
+  aliases:
+    - "voestalpine AG"
+    - "Voestalpine Railway Systems"

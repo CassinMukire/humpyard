@@ -1,0 +1,75 @@
+================================================================================
+OIU — Office of Science and Innovation, Stockholm
+Mapping of Polish Marshalling Yards
+File: Z1.2 — Polish hump yard inventory and modernization status
+Retrieved: 2026-08-15
+================================================================================
+
+EXECUTIVE SUMMARY
+-----------------
+The Polish rail freight network is operated by PKP Polskie Linie Kolejowe
+(PKP PLK), the state-owned infrastructure manager. PKP PLK oversees
+approximately 28 marshalling yards across the country, of which roughly a
+dozen are classified as active hump yards. EU TEN-T co-funding (2021–2027)
+unlocks a significant modernization window through 2027.
+
+Active hump yards identified by OIU as priority targets for DECEL:
+
+  1. Idzikowice Classification Yard (the priority target — declared
+     end-of-life for the existing Axtone retarder; Q4 2026 modernization
+     tender planned).
+
+  2. Karsznice Sorting Yard (Knorr-Bremse hydraulic retarder installed
+     2014; no modernization planned before 2028).
+
+  3. Warszawa Praga Classification Yard (mixed Axtone + Knorr-Bremse;
+     track group 3 modernized 2017; remaining track groups end-of-life
+     by 2029).
+
+  4. Gliwice Sorting Yard (Axtone retarder installed 2010; no
+     modernization timeline yet).
+
+  5. Łódź Olechów Sorting Yard (Voestalpine retarder installed 2012;
+     no modernization timeline yet).
+
+  6. Wrocław Brochów (additional yard identified in the mapping; modern
+     retarder installed 2018; not yet a priority target).
+
+Decision-maker contacts (PKP PLK, Warsaw):
+
+  - Anna Kowalska — Director of Infrastructure Investment at PKP PLK.
+    Controls the $2.3B capex programme. Previously Head of Capex Planning
+    2020–2023.
+
+  - Tomasz Nowak — Head of Procurement, Hump Yard Modernization Programme.
+    Lead procurement officer for the Idzikowice modernization tender.
+
+  - Marta Wójcik — Chief Engineer, Marshalling Yard Systems. Published
+    'Modernization of Polish Marshalling Yards 2024–2030' in Rynek Kolejowy
+    Q1 2026. Co-presenter at TRAKO 2025 retarder spec workshop.
+
+External stakeholders:
+
+  - SYSTRA is the spec-writing consultant on the PKP PLK Hump Yard
+    Modernization programme. Julien Martin leads the SYSTRA side.
+
+  - Axtone (Axtone GmbH) is the incumbent retarder vendor. Piotr Kowalski
+    is Regional Sales Manager, Central Europe.
+
+PROCUREMENT CONTEXT
+-------------------
+The Idzikowice modernization tender is expected to be published in Q4 2026
+with award in Q2 2027. Total contract value estimated at €40–60M including
+retarders, control systems, and 24-month integration.
+
+SOURCES
+-------
+This mapping is based on:
+  - OIU field research in Warsaw, May 2025
+  - PKP PLK Capex Plan 2024-2030 (published)
+  - Interviews with SYSTRA and Axtone (Q2 2025)
+  - TRAKO 2025 conference proceedings (Gdańsk, October 2025)
+
+================================================================================
+End of file.
+================================================================================

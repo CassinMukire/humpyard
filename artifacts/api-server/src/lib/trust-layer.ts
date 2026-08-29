@@ -35,7 +35,7 @@ export const PRIMARY_DOMAIN_WHITELIST: ReadonlySet<string> = new Set<string>([
   "db-infra.go",
   "bahn.de",
   // Middle Corridor (watchlist+)
-  " railways.kz",
+  "railways.kz",
   "temirzholy.kz",
   "uzrailway.uz",
   // Multilateral funders (primary when grant references appear)
