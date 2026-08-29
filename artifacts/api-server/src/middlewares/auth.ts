@@ -18,6 +18,7 @@ import {
   touchSession,
   logAuthEvent,
 } from "../lib/auth";
+import { isDemoMode } from "../lib/store-factory";
 
 let warnedDevBypass = false;
 let warnedNotConfigured = false;
@@ -85,6 +86,15 @@ export const requireAuth: RequestHandler = async (req, res, next) => {
   // 2. Check for bearer/cookie token
   const token = extractBearerOrCookieToken(req);
   if (token) {
+    // Demo-mode bypass: tokens issued by the demo auth flow (prefix "demo-")
+    // are accepted without a DB lookup. This keeps the login UX real (the
+    // password is still checked) without requiring Postgres.
+    if (isDemoMode() && token.startsWith("demo-")) {
+      const userId = token.split("-")[1] ?? "dev-bypass";
+      setAuthOnReq(req, userId, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+      next();
+      return;
+    }
     const session = await getSession(token);
     if (session) {
       // Sliding window — touch the session

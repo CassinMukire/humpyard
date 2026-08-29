@@ -28,6 +28,7 @@ import {
 } from "../../lib/auth";
 import { validateBody } from "../../middlewares/validate";
 import { requireAuth } from "../../middlewares/auth";
+import { isDemoMode } from "../../lib/store-factory";
 
 const router = Router();
 
@@ -130,18 +131,30 @@ router.post(
         return;
       }
 
-      const { token, expiresAt } = await createSession({
-        userId: username,
-        ip,
-        userAgent: ua,
-      });
+      // Demo mode (file-backed dev store, no Postgres): issue a fixed-shape
+      // token. The auth middleware accepts this token shape without a DB
+      // lookup. The password is still checked, so the login UX is real.
+      let token: string;
+      let expiresAt: Date;
+      if (isDemoMode()) {
+        token = `demo-${username}-${Date.now()}`;
+        expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      } else {
+        const created = await createSession({
+          userId: username,
+          ip,
+          userAgent: ua,
+        });
+        token = created.token;
+        expiresAt = created.expiresAt;
+      }
 
       await logAuthEvent({
         event: "login_success",
         user: username,
         ip,
         userAgent: ua,
-        details: { expiresAt: expiresAt.toISOString() },
+        details: { expiresAt: expiresAt.toISOString(), demo: isDemoMode() },
       });
 
       // Also set an HttpOnly cookie for browser-based flows. The token is

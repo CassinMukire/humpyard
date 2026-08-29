@@ -11,6 +11,8 @@
 // =============================================================================
 
 import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type {
   ReviewQueueItem,
   Correction,
@@ -24,6 +26,7 @@ import type {
   DoctrineRevision,
 } from "@workspace/api-zod";
 import { isQueueItemStale } from "./trust-layer";
+import { logger } from "./logger";
 
 const markets = new Map<string, Market>();
 const yards = new Map<string, Yard>();
@@ -43,6 +46,116 @@ function id(prefix: string): string {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+// -----------------------------------------------------------------------------
+// File persistence — demo store survives restarts.
+//
+// Default path: data/demo-store.json (relative to api-server cwd). Override
+// with DEMO_STORE_FILE env var. Writes are best-effort: a failed write logs
+// a warning and the in-memory state continues.
+// -----------------------------------------------------------------------------
+
+const PERSIST_FILE = process.env["DEMO_STORE_FILE"] ?? join(process.cwd(), "data", "demo-store.json");
+const PERSIST_DEBOUNCE_MS = 250;
+
+interface DemoSnapshot {
+  version: 1;
+  saved_at: string;
+  markets: Market[];
+  yards: Yard[];
+  orgs: Org[];
+  persons: Person[];
+  plays: Play[];
+  review_queue: ReviewQueueItem[];
+  corrections: Correction[];
+  meetings: MeetingLog[];
+  battle_cards: BattleCard[];
+  doctrine_revisions: DoctrineRevision[];
+  rejection_hashes: string[];
+}
+
+let persistTimer: NodeJS.Timeout | null = null;
+
+function persistNow(): void {
+  try {
+    const snap: DemoSnapshot = {
+      version: 1,
+      saved_at: new Date().toISOString(),
+      markets: Array.from(markets.values()),
+      yards: Array.from(yards.values()),
+      orgs: Array.from(orgs.values()),
+      persons: Array.from(persons.values()),
+      plays: Array.from(plays.values()),
+      review_queue: Array.from(reviewQueue.values()),
+      corrections: [...corrections],
+      meetings: [...meetings],
+      battle_cards: Array.from(battleCards.values()),
+      doctrine_revisions: [...doctrineRevisions],
+      rejection_hashes: Array.from(rejectionHashes),
+    };
+    mkdirSync(dirname(PERSIST_FILE), { recursive: true });
+    writeFileSync(PERSIST_FILE, JSON.stringify(snap, null, 2), "utf8");
+  } catch (err) {
+    logger.warn({ err, file: PERSIST_FILE }, "demo-store: failed to persist snapshot");
+  }
+}
+
+function persist(): void {
+  if (persistTimer) return;
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    persistNow();
+  }, PERSIST_DEBOUNCE_MS);
+}
+
+function loadFromDisk(): boolean {
+  if (!existsSync(PERSIST_FILE)) return false;
+  try {
+    const raw = readFileSync(PERSIST_FILE, "utf8");
+    const snap = JSON.parse(raw) as DemoSnapshot;
+    if (snap.version !== 1) {
+      logger.warn({ version: snap.version }, "demo-store: unknown snapshot version, ignoring");
+      return false;
+    }
+    markets.clear();
+    snap.markets.forEach((m) => markets.set(m.id, m));
+    yards.clear();
+    snap.yards.forEach((y) => yards.set(y.id, y));
+    orgs.clear();
+    snap.orgs.forEach((o) => orgs.set(o.id, o));
+    persons.clear();
+    snap.persons.forEach((p) => persons.set(p.id, p));
+    plays.clear();
+    snap.plays.forEach((p) => plays.set(p.id, p));
+    reviewQueue.clear();
+    snap.review_queue.forEach((q) => reviewQueue.set(q.id, q));
+    corrections.length = 0;
+    corrections.push(...snap.corrections);
+    meetings.length = 0;
+    meetings.push(...snap.meetings);
+    battleCards.clear();
+    snap.battle_cards.forEach((b) => battleCards.set(b.org_id, b));
+    doctrineRevisions.length = 0;
+    doctrineRevisions.push(...snap.doctrine_revisions);
+    rejectionHashes.clear();
+    snap.rejection_hashes.forEach((h) => rejectionHashes.add(h));
+    // Empty snapshot — treat as a fresh seed. A previous run might have
+    // saved an empty file before the seed completed, or someone reset the
+    // file by hand. Either way, re-seed.
+    if (markets.size === 0 && orgs.size === 0 && persons.size === 0) {
+      logger.info({ file: PERSIST_FILE }, "demo-store: snapshot empty, will re-seed");
+      return false;
+    }
+    logger.info(
+      { file: PERSIST_FILE, markets: markets.size, yards: yards.size, persons: persons.size, cards: battleCards.size },
+      "demo-store: loaded snapshot from disk",
+    );
+    return true;
+  } catch (err) {
+    logger.warn({ err, file: PERSIST_FILE }, "demo-store: failed to load snapshot, will seed fresh");
+    return false;
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -642,16 +755,34 @@ export async function resetAllStores(): Promise<void> {
   doctrineRevisions.length = 0;
   rejectionHashes.clear();
   seeded = false;
+  // Force-delete the snapshot so the next access re-seeds.
+  try {
+    if (existsSync(PERSIST_FILE)) {
+      const { unlinkSync } = await import("node:fs");
+      unlinkSync(PERSIST_FILE);
+    }
+  } catch {
+    // best-effort
+  }
 }
 
 export function ensureSeeded(): void {
-  if (!seeded) seed();
+  if (seeded) return;
+  // First try to load a saved snapshot from disk. If that fails (no file or
+  // empty), seed with the in-memory fixture data and persist it.
+  if (loadFromDisk()) {
+    seeded = true;
+    return;
+  }
+  seed();
+  persist();
 }
 
 // Markets
 export async function upsertMarket(m: Market): Promise<Market> {
   ensureSeeded();
   markets.set(m.id, m);
+  persist();
   return m;
 }
 export async function getMarket(id: string): Promise<Market | undefined> {
@@ -667,6 +798,7 @@ export async function listMarkets(): Promise<Market[]> {
 export async function upsertYard(y: Yard): Promise<Yard> {
   ensureSeeded();
   yards.set(y.id, y);
+  persist();
   return y;
 }
 export async function getYard(id: string): Promise<Yard | undefined> {
@@ -682,6 +814,7 @@ export async function listYardsByMarket(marketId: string): Promise<Yard[]> {
 export async function upsertOrg(o: Org): Promise<Org> {
   ensureSeeded();
   orgs.set(o.id, o);
+  persist();
   return o;
 }
 export async function getOrg(id: string): Promise<Org | undefined> {
@@ -701,6 +834,7 @@ export async function findOrgByMatchKey(matchKey: string): Promise<Org | undefin
 export async function upsertPerson(p: Person): Promise<Person> {
   ensureSeeded();
   persons.set(p.id, p);
+  persist();
   return p;
 }
 export async function getPerson(id: string): Promise<Person | undefined> {
@@ -723,6 +857,7 @@ export async function touchPersonEngagement(personId: string): Promise<void> {
   const p = persons.get(personId);
   if (!p) return;
   persons.set(personId, { ...p, last_engagement_at: new Date().toISOString() });
+  persist();
 }
 
 // Plays
@@ -730,6 +865,7 @@ export async function createPlay(p: Omit<Play, "id" | "created_at">): Promise<Pl
   ensureSeeded();
   const play: Play = { ...p, id: id("play"), created_at: new Date().toISOString() };
   plays.set(play.id, play);
+  persist();
   return play;
 }
 export async function listPlaysByMarket(marketId: string): Promise<Play[]> {
@@ -746,6 +882,7 @@ export async function logCorrection(c: Omit<Correction, "id" | "ts"> & { ts?: st
     ts: c.ts ?? new Date().toISOString(),
   };
   corrections.push(correction);
+  persist();
   return correction;
 }
 export async function listCorrections(factId?: string): Promise<Correction[]> {
@@ -758,6 +895,7 @@ export async function isRejectedContent(hash: string): Promise<boolean> {
 }
 export async function recordRejection(hash: string): Promise<void> {
   rejectionHashes.add(hash);
+  persist();
 }
 
 // Review queue
@@ -766,6 +904,7 @@ export async function addToReviewQueue(item: Omit<ReviewQueueItem, "id" | "ts">)
   ensureSeeded();
   const rqi: ReviewQueueItem = { ...item, id: id("q"), ts: new Date().toISOString() };
   reviewQueue.set(rqi.id, rqi);
+  persist();
   return rqi;
 }
 export async function listReviewQueue(opts?: { marketId?: string; includeArchived?: boolean }): Promise<ReviewQueueItem[]> {
@@ -782,7 +921,9 @@ export async function getReviewQueueItem(id: string): Promise<ReviewQueueItem | 
   return reviewQueue.get(id);
 }
 export async function removeFromReviewQueue(id: string): Promise<boolean> {
-  return reviewQueue.delete(id);
+  const result = reviewQueue.delete(id);
+  if (result) persist();
+  return result;
 }
 export async function autoArchiveStaleQueueItems(): Promise<number> {
   let n = 0;
@@ -800,6 +941,7 @@ export async function logMeeting(m: Omit<MeetingLog, "id">): Promise<MeetingLog>
   ensureSeeded();
   const meeting: MeetingLog = { ...m, id: id("m") };
   meetings.push(meeting);
+  persist();
   return meeting;
 }
 export async function listMeetingsByOrg(orgId: string): Promise<MeetingLog[]> {
@@ -811,6 +953,7 @@ export async function listMeetingsByOrg(orgId: string): Promise<MeetingLog[]> {
 export async function upsertBattleCard(card: BattleCard): Promise<BattleCard> {
   ensureSeeded();
   battleCards.set(card.org_id, card);
+  persist();
   return card;
 }
 export async function getBattleCard(orgId: string): Promise<BattleCard | undefined> {
@@ -825,6 +968,7 @@ export async function recordDoctrineRevision(rev: Omit<DoctrineRevision, "ts">):
   ensureSeeded();
   const r: DoctrineRevision = { ...rev, ts: new Date().toISOString() };
   doctrineRevisions.push(r);
+  persist();
   return r;
 }
 export async function listDoctrineRevisions(

@@ -6,7 +6,7 @@
 // badge so the operator can trust the briefing.
 // =============================================================================
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BriefingLayout } from "@/components/BriefingLayout";
 import { getDossier } from "@/lib/v1-api";
+import { customFetch, ApiError } from "@workspace/api-client-react";
 import {
   ArrowLeft,
   ExternalLink,
@@ -32,6 +33,8 @@ import {
   Copy,
   Check,
   Loader2,
+  Sparkles,
+  Send,
 } from "lucide-react";
 import type { SourcedFact, Yard, Org, Person, Tier, Posture, PersonInterest } from "@workspace/api-client-react";
 import { useState } from "react";
@@ -221,8 +224,11 @@ function YardsTable({ yards }: { yards: Yard[] }) {
   );
 }
 
-function PersonCard({ person }: { person: Person }) {
+function PersonCard({ person, onChanged }: { person: Person; onChanged: () => void }) {
   const [copied, setCopied] = useState(false);
+  const [enrichError, setEnrichError] = useState<string | null>(null);
+  const [mondayStatus, setMondayStatus] = useState<string | null>(null);
+
   const handleCopy = () => {
     if (person.linkedin_url) {
       navigator.clipboard.writeText(person.linkedin_url).then(() => {
@@ -232,12 +238,51 @@ function PersonCard({ person }: { person: Person }) {
     }
   };
 
+  const enrichMutation = useMutation({
+    mutationFn: () => customFetch<{ person: Person; provider: string }>(`/api/v1/people/${person.id}/enrich`, { method: "POST", body: "{}" }),
+    onSuccess: () => {
+      setEnrichError(null);
+      onChanged();
+    },
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 402) {
+        setEnrichError("Proxycurl not configured");
+      } else {
+        setEnrichError(err instanceof Error ? err.message : String(err));
+      }
+    },
+  });
+
+  const mondayMutation = useMutation({
+    mutationFn: () =>
+      customFetch<{ person_id: string; status: string; monday_item_id: string | null; reason?: string }>(
+        `/api/v1/monday/push/person/${person.id}`,
+        { method: "POST" },
+      ),
+    onSuccess: (data) => {
+      if (data.status === "created" || data.status === "updated") {
+        setMondayStatus(`monday item ${data.monday_item_id}`);
+        onChanged();
+      } else if (data.status === "error") {
+        setMondayStatus(`error: ${data.reason ?? "unknown"}`);
+      } else {
+        setMondayStatus(`${data.status}: ${data.reason ?? ""}`);
+      }
+    },
+    onError: (err) => {
+      setMondayStatus(`error: ${err instanceof Error ? err.message : String(err)}`);
+    },
+  });
+
   return (
     <div className="border border-border bg-background/40 p-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-foreground">{person.name}</p>
           <p className="text-xs text-primary font-mono mt-0.5">{person.role}</p>
+          {person.monday_item_id && (
+            <p className="text-[10px] text-muted-foreground font-mono mt-0.5">monday: {person.monday_item_id}</p>
+          )}
         </div>
         <Badge
           variant="outline"
@@ -293,6 +338,51 @@ function PersonCard({ person }: { person: Person }) {
           </button>
         </div>
       )}
+
+      {/* Live API actions — exercise Proxycurl + monday end-to-end */}
+      <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => enrichMutation.mutate()}
+          disabled={enrichMutation.isPending || mondayMutation.isPending}
+          className="text-xs font-mono"
+          title="Pull the latest public profile + interests from Proxycurl"
+        >
+          {enrichMutation.isPending ? (
+            <Loader2 className="w-3 h-3 animate-spin mr-1" />
+          ) : (
+            <Sparkles className="w-3 h-3 mr-1" />
+          )}
+          Enrich (Proxycurl)
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => mondayMutation.mutate()}
+          disabled={enrichMutation.isPending || mondayMutation.isPending}
+          className="text-xs font-mono"
+          title="Push this person to the monday.com People board"
+        >
+          {mondayMutation.isPending ? (
+            <Loader2 className="w-3 h-3 animate-spin mr-1" />
+          ) : (
+            <Send className="w-3 h-3 mr-1" />
+          )}
+          Push to monday
+        </Button>
+      </div>
+
+      {(enrichError || mondayStatus) && (
+        <p className={cn(
+          "text-[10px] font-mono",
+          enrichError || mondayStatus?.startsWith("error")
+            ? "text-amber-500"
+            : "text-green-500",
+        )}>
+          {enrichError ? `enrich: ${enrichError}` : `monday: ${mondayStatus}`}
+        </p>
+      )}
     </div>
   );
 }
@@ -300,9 +390,11 @@ function PersonCard({ person }: { person: Person }) {
 function OrgNetwork({
   orgs,
   peopleByOrg,
+  onPersonChanged,
 }: {
   orgs: Org[];
   peopleByOrg: { org: Org; people: Person[] }[];
+  onPersonChanged: () => void;
 }) {
   return (
     <Card>
@@ -345,7 +437,7 @@ function OrgNetwork({
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {people.map((p) => (
-                  <PersonCard key={p.id} person={p} />
+                  <PersonCard key={p.id} person={p} onChanged={onPersonChanged} />
                 ))}
               </div>
             )}
@@ -361,9 +453,10 @@ function OrgNetwork({
 // -----------------------------------------------------------------------------
 
 export default function DossierDetail() {
+  const queryClient = useQueryClient();
   const [, params] = useRoute<{ id: string }>("/dossiers/:id");
   const id = params?.id ?? "";
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["dossier", id],
     queryFn: () => getDossier(id),
     enabled: !!id,
@@ -475,7 +568,7 @@ export default function DossierDetail() {
         <YardsTable yards={yards} />
 
         {/* Org + People network */}
-        <OrgNetwork orgs={data.orgs} peopleByOrg={people_by_org} />
+        <OrgNetwork orgs={data.orgs} peopleByOrg={people_by_org} onPersonChanged={() => refetch()} />
 
         {/* Posture history + sources */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
