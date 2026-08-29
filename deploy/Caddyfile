@@ -1,0 +1,42 @@
+# =============================================================================
+# Caddyfile — reverse proxy + HTTPS for the DECEL app container.
+#
+# Drop this on the host at /etc/caddy/Caddyfile (replacing any existing one).
+# Then: `systemctl reload caddy`. Caddy auto-provisions Let's Encrypt certs.
+#
+# The app container listens on 127.0.0.1:5000 (set in docker-compose). Caddy
+# is the only thing exposed to the internet on :80 and :443.
+# =============================================================================
+
+# Replace `decelsun.com` with your real domain once DNS points at this box.
+decelsun.com, www.decelsun.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:5000 {
+        # Long timeouts for the W35 demo (Lottie / Exa calls can be slow)
+        transport http {
+            dial_timeout 30s
+            response_header_timeout 60s
+        }
+    }
+    # Tighten security headers a notch on top of the api-server's helmet
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # HSTS preload + frame deny on top of helmet
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        # Remove the Server header
+        -Server
+    }
+    log {
+        output file /var/log/caddy/decelsun.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}
+
+# Optional: bare-host redirect
+http://decelsun.com {
+    redir https://www.decelsun.com{uri} permanent
+}
