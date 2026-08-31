@@ -1,77 +1,101 @@
-# DECEL — Hetzner CX22 deploy runbook
+# DECEL Intelligence Platform — production deploy
 
-## What's in this folder
+**One command from a fresh Hetzner CX22 to a live, https-served, Postgres-backed
+api-server.** Re-deploys are equally one command.
 
-| File | What |
-|---|---|
-| `setup-host.sh` | One-time, run as `root` on a fresh Hetzner CX22 (Ubuntu 24.04). Installs Docker + Caddy, creates the `decel` user, opens ports 22/80/443, hardens sshd. |
-| `deploy.sh` | Run as `decel` in `~/decel/`. Builds + starts the Docker stack, waits for healthz, tails the logs. Idempotent. |
-| `Caddyfile` | Reverse proxy + Let's Encrypt HTTPS. Drop on the host at `/etc/caddy/Caddyfile`. Replace `decelsun.com` with the real domain. |
-
-## One-time setup on the host
+## TL;DR
 
 ```bash
-# 1. From your laptop, SSH in as root with the SSH key Hetzner gave you
-ssh root@YOUR_HETZNER_IP
+# Once, on a fresh Hetzner CX22 (Ubuntu 24.04, Frankfurt region):
+scp deploy/setup-host.sh root@<host>:~/
+ssh root@<host>
+chmod +x setup-host.sh && ./setup-host.sh
 
-# 2. Add your SSH key for the decel user (so you can log in as decel)
-#    (paste the contents of your public key on the next line)
-mkdir -p /home/decel/.ssh
-echo "ssh-ed25519 AAAA...your-key..." > /home/decel/.ssh/authorized_keys
-chmod 700 /home/decel/.ssh && chmod 600 /home/decel/.ssh/authorized_keys
-chown -R decel:decel /home/decel/.ssh
-
-# 3. Run the host setup
-bash /tmp/setup-host.sh   # or wherever you put it
-
-# 4. Log out, log back in as decel
-exit
-ssh decel@YOUR_HETZNER_IP
+# Then in ~/decel on the host:
+cp .env.production.example .env
+# ... edit .env (DATABASE_URL, AUTH_PASS_HASH, integration keys) ...
+bash deploy.sh
 ```
 
-## Deploy
+The host is now serving `https://<your-domain>/` with the v1 baseline seeded
+into Postgres, the api-server listening on :5000 behind Caddy, and Let's
+Encrypt TLS auto-renewed.
+
+## What lives here
+
+| File | Purpose |
+|------|---------|
+| `setup-host.sh` | One-shot host bootstrap: installs Docker + Caddy, clones the repo, writes a Caddyfile, prints next steps. |
+| `deploy.sh` | Per-release: pulls code, builds, applies schema, seeds (idempotent), restarts the api-server, health-checks. |
+| `Caddyfile` | Reverse proxy with automatic HTTPS + Caddy-managed Let's Encrypt. Streams real client IPs from Cloudflare's `CF-Connecting-IP` header. |
+| `README.md` | This file. |
+
+## Architecture
+
+```
+Internet ─── HTTPS (Caddy :443) ───> Caddy ───> api-server (:5000, localhost-only)
+                                                       │
+                                                       ├── Postgres (:5432, localhost-only)
+                                                       └── Snapshots to data/ (mounted volume)
+```
+
+Both the api-server and Postgres run in Docker. Caddy runs on the host (so it
+can bind :443 and :80 directly without Docker-in-Docker complications).
+
+## Why Caddy on the host instead of in Docker
+
+- It needs to bind :80 and :443 to acquire Let's Encrypt certs. Running it
+  outside Docker avoids the CAP_NET_BIND_SERVICE dance.
+- Caddy auto-renews TLS with no operator action.
+- It streams real client IPs (via CF-Connecting-IP) which the api-server
+  needs for spam forensics.
+
+## What is on the operator's desk after `setup-host.sh`
+
+The script deliberately does NOT auto-create `.env`. Reason: secrets should
+not live in shell history. After the script finishes, the operator:
+
+1. `cd ~/decel`
+2. `cp .env.production.example .env`
+3. Edit `.env`:
+   - `AUTH_PASS_HASH` — generate with `pnpm --filter @workspace/api-server run hash-password "your-password"`
+   - `DATABASE_URL` — leave as `postgres://decel:decel@db:5432/decel` if using the bundled compose, OR set your managed Postgres URL
+   - `EXA_API_KEY`, `OPENAI_API_KEY`, `MONDAY_API_TOKEN`, `MONDAY_BOARD_PEOPLE_ID`, `PROXYCURL_API_KEY`
+4. `bash deploy.sh`
+
+## Health check
 
 ```bash
-# 5. Clone the project on the host
-git clone https://github.com/hitankshah/hump-yard-insight.git ~/decel
-#    (or use your fork / git bundle)
+curl -u cassin https://<your-domain>/api/v1/system/info | jq
+```
 
+Expected output:
+```json
+{
+  "in_memory_store": false,
+  "auth_disabled": false,
+  "monday_configured": true,
+  "node_env": "production",
+  ...
+}
+```
+
+If `in_memory_store: true` or `node_env != "production"`, the deploy is
+broken — stop and check the logs: `docker logs decel-app`.
+
+## Rolling back
+
+```bash
 cd ~/decel
-cp .env.example .env
-# Edit .env — paste the real API keys, MONDAY_BOARD_PEOPLE_ID, AUTH_PASS_HASH, etc.
-$EDITOR .env
-
-# 6. Run the deploy
-bash deploy/deploy.sh
+git checkout v1.0  # or any prior tag
+bash deploy.sh
 ```
 
-## HTTPS
+## GDPR + EU/EEA
 
-```bash
-# 7. Point the domain at the Hetzner IP (A record, decelsun.com → 1.2.3.4)
-#    Wait for DNS to propagate.
-
-# 8. Install the Caddyfile
-sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
-sudo sed -i 's/decelsun.com/your-real-domain.com/g' /etc/caddy/Caddyfile
-sudo systemctl reload caddy
-```
-
-Caddy auto-issues the Let's Encrypt cert within seconds. Your app is now live on **https://your-real-domain.com**.
-
-## Ongoing updates
-
-When you ship new code, just run `bash deploy/deploy.sh` again. Docker rebuilds only what changed; data in the `decel-db-data` named volume persists.
-
-## Rollback
-
-```bash
-# If a deploy breaks, roll back to the previous image
-docker compose down
-docker compose up -d --build   # rebuilds from the current commit
-# Or: git checkout <previous-tag> && bash deploy/deploy.sh
-```
-
-## Cost
-
-Hetzner CX22 Frankfurt: €4.85/month. Plus ~€0.50/month for backups. Plus the Postgres volume (~1 GB) — included in the CX22 SSD. Total: under €6/month.
+- Hetzner Frankfurt region (FSN1) — EU/EEA.
+- Postgres TZ is `Europe/Stockholm` (operator's timezone).
+- All v1 routes gated by single-user basic auth; no anonymous endpoints
+  expose PII.
+- Snapshot data (PII under §12.5) lives on a local named volume. Offsite
+  backup is the operator's responsibility per §12.6.

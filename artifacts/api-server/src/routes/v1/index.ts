@@ -18,6 +18,7 @@ import mondaySyncRouter from "./monday-sync";
 import linkedinRouter from "./linkedin";
 import countryScanRouter from "./country-scan";
 import { isDemoMode } from "../../lib/store-factory";
+import { logger } from "../../lib/logger";
 
 const router = Router();
 
@@ -29,18 +30,32 @@ router.use("/auth", authRouter);
 router.use(requireAuth);
 
 // GET /api/v1/system/info — runtime config (gated, safe to expose to the
-// operator). Tells the UI which store backend is live so the dashboard can
-// show a clear "DEMO MODE" badge.
+// operator). Tells the UI which store backend is live. `in_memory_store`
+// is exposed so the UI can show a clear warning badge when running on the
+// dev-only in-memory backend. In production, this field is always false.
 router.get("/system/info", (_req, res) => {
+  const inMemory = isDemoMode();
+  const authDisabled = process.env["DISABLE_AUTH"] === "true";
+  const nodeEnv = process.env["NODE_ENV"] ?? "development";
+  // Surface a startup-time error in the logs so an operator sees a
+  // misconfiguration immediately, not silently.
+  if (nodeEnv === "production" && (inMemory || authDisabled)) {
+    logger.error(
+      { inMemory, authDisabled },
+      "system/info: production is running with dev-only flags set — investigate",
+    );
+  }
   res.json({
-    demo_mode: isDemoMode(),
-    auth_disabled: process.env["DISABLE_AUTH"] === "true",
+    in_memory_store: inMemory,
+    auth_disabled: authDisabled,
     monday_configured: !!process.env["MONDAY_API_TOKEN"],
     monday_board_people_id: process.env["MONDAY_BOARD_PEOPLE_ID"] || null,
     proxycurl_configured: !!process.env["PROXYCURL_API_KEY"],
     exa_configured: !!process.env["EXA_API_KEY"],
     openai_configured: !!process.env["OPENAI_API_KEY"],
-    node_env: process.env["NODE_ENV"] ?? "development",
+    node_env: nodeEnv,
+    build_sha: process.env["BUILD_SHA"] ?? null,
+    started_at: process.env["STARTED_AT"] ?? new Date().toISOString(),
   });
 });
 

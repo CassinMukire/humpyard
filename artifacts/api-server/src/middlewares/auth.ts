@@ -1,13 +1,18 @@
 // =============================================================================
-// Auth middleware — v1.1
+// Auth middleware — v1.2 (production-grade)
 //
-// v1 = single user (Cassin). Three auth modes, in priority order:
+// v1 = single user (Cassin). Auth modes, in priority order:
 //   1. Bearer token (from /api/v1/auth/login) — preferred
 //   2. HttpOnly cookie `decel_session` — set on login
 //   3. HTTP Basic (AUTH_USER + AUTH_PASS_HASH or AUTH_PASS) — backward compat
 //
-// DISABLE_AUTH=true short-circuits everything (dev only).
+// DISABLE_AUTH=true short-circuits everything (DEV ONLY; refused in production).
 // In production, missing AUTH_USER / AUTH_PASS_HASH returns 503.
+//
+// The legacy "demo-*" token bypass was removed in v1.2. All sessions are
+// real DB rows. The login flow is unchanged — it always verifies the
+// password via scrypt (or via AUTH_PASS plaintext when explicitly set in
+// dev). There is no in-memory token path.
 // =============================================================================
 
 import type { RequestHandler } from "express";
@@ -18,7 +23,6 @@ import {
   touchSession,
   logAuthEvent,
 } from "../lib/auth";
-import { isDemoMode } from "../lib/store-factory";
 
 let warnedDevBypass = false;
 let warnedNotConfigured = false;
@@ -72,8 +76,16 @@ function extractBearerOrCookieToken(req: { headers: { authorization?: string; co
 }
 
 export const requireAuth: RequestHandler = async (req, res, next) => {
-  // 1. Dev escape hatch
+  // 1. Dev escape hatch — REFUSED in production.
   if (process.env["DISABLE_AUTH"] === "true") {
+    if (process.env["NODE_ENV"] === "production") {
+      warnOnce(
+        "dev_bypass",
+        "DISABLE_AUTH=true is set but NODE_ENV=production — REFUSING to bypass auth in production. Fix env vars.",
+      );
+      res.status(503).json({ error: "DISABLE_AUTH is not allowed in production" });
+      return;
+    }
     warnOnce(
       "dev_bypass",
       "DISABLE_AUTH=true — auth gate is OFF. Do not use in production.",
@@ -83,18 +95,11 @@ export const requireAuth: RequestHandler = async (req, res, next) => {
     return;
   }
 
-  // 2. Check for bearer/cookie token
+  // 2. Check for bearer/cookie token. All tokens are real DB sessions —
+  //    there is no in-memory token path. If the session row is missing,
+  //    the token is rejected.
   const token = extractBearerOrCookieToken(req);
   if (token) {
-    // Demo-mode bypass: tokens issued by the demo auth flow (prefix "demo-")
-    // are accepted without a DB lookup. This keeps the login UX real (the
-    // password is still checked) without requiring Postgres.
-    if (isDemoMode() && token.startsWith("demo-")) {
-      const userId = token.split("-")[1] ?? "dev-bypass";
-      setAuthOnReq(req, userId, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
-      next();
-      return;
-    }
     const session = await getSession(token);
     if (session) {
       // Sliding window — touch the session

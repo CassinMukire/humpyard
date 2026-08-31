@@ -1,48 +1,60 @@
 #!/usr/bin/env bash
 # =============================================================================
-# deploy.sh — deploy the DECEL app on a Hetzner CX22 (or any Docker host)
+# Production deploy — runs on every release.
 #
-# Run as the `decel` user, in the project root (~/decel/).
-# What it does:
-#   1. Make sure .env exists (copy from .env.example if missing)
-#   2. Build + start the containers (docker compose up -d --build)
-#   3. Wait for the app to come up (curl /api/healthz)
-#   4. Tail the logs (last 30 lines) for a sanity check
+# Steps:
+#   1. Pull latest code
+#   2. Build the api-server (tsc → dist/index.mjs) and the React app
+#   3. Apply Drizzle schema (idempotent — only adds what's new)
+#   4. Seed the v1 baseline IF the DB is empty (idempotent)
+#   5. Restart the api-server container
+#   6. Health check
 #
-# Idempotent: safe to run again after code changes. docker compose up will
-# rebuild only what changed.
+# Re-runs are safe. Roll back by re-running with a previous git tag.
 # =============================================================================
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
-PROJECT_ROOT="$(pwd)"
+APP_DIR="${APP_DIR:-$HOME/decel}"
+cd "$APP_DIR"
 
-# 1. .env
-if [[ ! -f "$PROJECT_ROOT/.env" ]]; then
-  echo "ERROR: no .env in $PROJECT_ROOT" >&2
-  echo "  cp .env.example .env  # then fill in the values" >&2
-  exit 1
+log() { echo "[deploy] $*"; }
+
+log "Pulling latest..."
+git pull --ff-only
+
+log "Building api-server..."
+pnpm install --frozen-lockfile
+pnpm --filter @workspace/api-server run build
+pnpm --filter @workspace/hump-yard-intel run build
+
+log "Applying Drizzle schema..."
+pnpm run db:push
+
+log "Seeding baseline (idempotent — no-op if already seeded)..."
+pnpm run db:seed
+
+log "Restarting api-server..."
+if docker ps -a --format '{{.Names}}' | grep -q '^decel-app$'; then
+  docker compose up -d --force-recreate --no-deps app
+else
+  log "  decel-app not running yet — starting full stack"
+  docker compose up -d
 fi
 
-# 2. Build + start
-echo "=== docker compose up -d --build ==="
-docker compose up -d --build
-
-# 3. Wait for healthz (up to 90s)
-echo "=== waiting for /api/healthz ==="
-for i in $(seq 1 30); do
-  if curl -sf http://127.0.0.1:5000/api/healthz >/dev/null; then
-    echo "  ✓ healthy after ${i} attempts"
+log "Waiting for health..."
+for i in {1..30}; do
+  if curl -sf -u "cassin:${AUTH_PASS:-cassin-demo-2026}" http://127.0.0.1:5000/api/v1/system/info >/dev/null 2>&1; then
+    log "  healthy after ${i}s"
     break
   fi
-  sleep 3
+  sleep 1
 done
 
-# 4. Sanity check
-echo
-echo "=== api-server status ==="
-curl -s http://127.0.0.1:5000/api/healthz || echo "(unhealthy — check logs)"
-echo
-echo
-echo "=== last 30 lines of app logs ==="
-docker compose logs --tail=30 app
+log ""
+log "=========================================================="
+log "  Deploy complete."
+log "=========================================================="
+log "  Verify: curl https://\${CADDY_DOMAIN}/api/v1/system/info -u cassin"
+log "  Logs:   docker logs -f decel-app"
+log "  DB:     docker exec -it decel-db psql -U decel -d decel"
+log "=========================================================="

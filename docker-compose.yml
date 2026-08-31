@@ -42,24 +42,24 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Use env_file (not environment:) so docker compose does NOT try to
+    # interpolate `$` characters in values like the scrypt hash. Values are
+    # passed through verbatim from .env.
+    env_file:
+      - .env
     environment:
-      # The api-server's DATABASE_URL points at the db service
+      # The api-server's DATABASE_URL points at the db service. This is the
+      # only override — every other var comes from .env via env_file above.
       DATABASE_URL: postgres://${POSTGRES_USER:-decel}:${POSTGRES_PASSWORD:-decel}@db:5432/${POSTGRES_DB:-decel}
-      # Pass through any v1 env vars from .env
-      AUTH_USER: ${AUTH_USER:-cassin}
-      AUTH_PASS: ${AUTH_PASS:-change-me}
-      DISABLE_AUTH: ${DISABLE_AUTH:-false}
-      EXA_API_KEY: ${EXA_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      MONDAY_API_TOKEN: ${MONDAY_API_TOKEN:-}
-      MONDAY_BOARD_PEOPLE_ID: ${MONDAY_BOARD_PEOPLE_ID:-}
-      PORT: ${PORT:-5000}
+      # Production hardening
       NODE_ENV: production
+      PORT: "5000"
       TZ: Europe/Stockholm
     ports:
-      # Default 8080:80 since the user-facing port is 8080 in the sprint plan.
-      # Change the left side to map to a different host port.
-      - "${HOST_PORT:-8080}:5000"
+      # The api-server listens on :5000 inside the container; Caddy on the
+      # host terminates TLS and proxies to this port. HOST_PORT=5000 by
+      # default for the Hetzner + Caddy setup.
+      - "${HOST_PORT:-5000}:5000"
     volumes:
       # Persist raw source snapshots across container restarts
       - decel-snapshots:/app/data/snapshots

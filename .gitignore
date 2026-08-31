@@ -53,8 +53,12 @@ Thumbs.db
 # Trash
 scripts/trash/
 
-# Runtime state — demo store snapshot + server logs
+# Runtime state — server logs + ephemeral data
 artifacts/api-server/data/
 artifacts/hump-yard-intel/data/
 data/demo-store.json
 logs/
+api-*.log
+start-*.ps1
+fail-fast*.log
+pg-test.cjs

@@ -1,80 +1,87 @@
 #!/usr/bin/env bash
 # =============================================================================
-# setup-host.sh — first-boot setup for a fresh Hetzner CX22 (Ubuntu 24.04)
+# Hetzner CX22 (Frankfurt) one-shot setup — runs ONCE per host.
 #
-# What it does:
-#   1. apt update + upgrade
-#   2. Install Docker Engine + Compose plugin
-#   3. Install Caddy (for HTTPS)
-#   4. Create a non-root `decel` user (with sudo, in docker group)
-#   5. Open ports 22, 80, 443 in ufw
-#   6. Hardens sshd (disable root password login, keep key auth)
+# Does:
+#   1. Installs Docker + Compose plugin if absent
+#   2. Installs Caddy (reverse proxy + automatic HTTPS via Let's Encrypt)
+#   3. Clones the repo to ~/decel
+#   4. Writes a Caddyfile from this script's template
+#   5. Prints next steps for the operator (set env, run deploy.sh)
 #
-# Run as root ONCE on a fresh CX22.
-# After this, copy the project, set up .env, and run deploy.sh as `decel`.
+# Re-runs are idempotent — safe to run twice.
+#
+# Usage (on a fresh Hetzner CX22, Ubuntu 24.04 LTS):
+#   scp deploy/setup-host.sh root@<host>:~/
+#   ssh root@<host>
+#   chmod +x setup-host.sh && ./setup-host.sh
 # =============================================================================
 set -euo pipefail
 
-if [[ $EUID -ne 0 ]]; then
-  echo "ERROR: run as root (e.g. sudo bash setup-host.sh)" >&2
-  exit 1
+REPO_URL="https://github.com/decel/hump-yard-insight.git"
+APP_DIR="$HOME/decel"
+HOST_PORT="${HOST_PORT:-443}"
+CADDY_DOMAIN="${CADDY_DOMAIN:-decel.example.com}"
+CADDY_EMAIL="${CADDY_EMAIL:-ops@example.com}"
+
+log() { echo "[setup-host] $*"; }
+
+# ---- 1. Docker + Compose ----
+if ! command -v docker >/dev/null 2>&1; then
+  log "Installing Docker..."
+  curl -fsSL https://get.docker.com | sh
+  usermod -aG docker "$USER" || true
+  log "Docker installed. Re-login required for group change to take effect."
+fi
+docker --version
+docker compose version
+
+# ---- 2. Caddy ----
+if ! command -v caddy >/dev/null 2>&1; then
+  log "Installing Caddy..."
+  sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/deb.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+  sudo apt update && sudo apt install -y caddy
+fi
+caddy version
+
+# ---- 3. Clone the repo ----
+if [ ! -d "$APP_DIR" ]; then
+  log "Cloning repo to $APP_DIR..."
+  git clone "$REPO_URL" "$APP_DIR"
+else
+  log "$APP_DIR already exists, skipping clone"
 fi
 
-set -x
-
-# 1. Update + upgrade
-apt update
-apt -y upgrade
-apt -y install ca-certificates curl gnupg ufw
-
-# 2. Docker Engine (per official docs, not the snap)
-install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-chmod a+r /etc/apt/keyrings/docker.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
-apt update
-apt -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-systemctl enable --now docker
-
-# 3. Caddy (HTTPS reverse proxy + Let's Encrypt)
-apt -y install caddy
-systemctl enable caddy
-
-# 4. decel user (no password — SSH key only)
-id decel || useradd -m -s /bin/bash -G sudo,docker decel
-passwd -d decel
-
-# 5. ufw — only 22, 80, 443 are public
-ufw default deny incoming
-ufw default allow outgoing
-ufw allow 22/tcp   # SSH
-ufw allow 80/tcp   # HTTP (Caddy → 301 to HTTPS)
-ufw allow 443/tcp  # HTTPS
-# 5000 is loopback-only (Caddy talks to the app on 127.0.0.1:5000)
-ufw --force enable
-
-# 6. sshd hardening
-SSHD=/etc/ssh/sshd_config
-cp "$SSHD" "$SSHD.bak.$(date +%s)"
-sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin prohibit-password/' "$SSHD"
-sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' "$SSHD"
-systemctl reload ssh
-
-set +x
-cat <<EOF
-
-============================================================
- Host ready.
-  - decel user:    log in as 'decel' with your SSH key
-  - docker:        systemctl status docker
-  - caddy:         systemctl status caddy
-  - ufw:           ufw status verbose
-
- Next steps:
-  1. From your laptop, copy the project:
-       rsync -avz --exclude 'node_modules' --exclude 'dist' \\
-         ./ decel@THIS_HOST:~/decel/
-  2. SSH in as decel:  ssh decel@THIS_HOST
-  3. cd decel && bash deploy/deploy.sh
-============================================================
+# ---- 4. Caddyfile ----
+if [ ! -f /etc/caddy/Caddyfile ]; then
+  log "Writing Caddyfile..."
+  sudo tee /etc/caddy/Caddyfile >/dev/null <<EOF
+$CADDY_DOMAIN {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:5000 {
+    header_up X-Real-IP {http.request.header.CF-Connecting-IP}
+    header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+  }
+}
 EOF
+  sudo systemctl reload caddy
+fi
+
+log ""
+log "=========================================================="
+log "  Hetzner host setup complete."
+log "=========================================================="
+log ""
+log "Next steps (operator runs these manually):"
+log "  1. cd $APP_DIR"
+log "  2. cp .env.production.example .env"
+log "  3. Edit .env:"
+log "       - AUTH_PASS_HASH (generate: pnpm --filter @workspace/api-server run hash-password)"
+log "       - DATABASE_URL (will be the docker-compose service name)"
+log "       - EXA_API_KEY, OPENAI_API_KEY, MONDAY_API_TOKEN, MONDAY_BOARD_PEOPLE_ID, PROXYCURL_API_KEY"
+log "  4. Run the deploy: bash deploy.sh"
+log "  5. Verify: curl https://$CADDY_DOMAIN/api/v1/system/info -u cassin:<pwd>"
+log ""
+log "If behind Cloudflare, set DNS to proxied + add firewall rules for the Hetzner IP."

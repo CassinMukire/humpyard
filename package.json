@@ -6,7 +6,15 @@
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "db:up": "docker run -d --name decel-db --restart unless-stopped -e POSTGRES_USER=decel -e POSTGRES_PASSWORD=decel-prod-2026 -e POSTGRES_DB=decel -e TZ=Europe/Stockholm -e PGTZ=Europe/Stockholm -p 5432:5432 -v decel-db-data-prod:/var/lib/postgresql/data postgres:16-alpine",
+    "db:down": "docker rm -f decel-db 2>/dev/null || true",
+    "db:logs": "docker logs -f decel-db",
+    "db:push": "node --env-file=.env ./node_modules/.pnpm/drizzle-kit@0.31.10/node_modules/drizzle-kit/bin.cjs push --config lib/db/drizzle.config.ts --force",
+    "db:seed": "node --env-file=.env ./node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs scripts/seed-production.ts",
+    "eval": "node --env-file=.env ./node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs scripts/eval-gate.ts",
+    "start": "pnpm --filter @workspace/api-server run start",
+    "prod": "pnpm run db:up && pnpm run db:push && pnpm run db:seed && pnpm run build && pnpm run start"
   },
   "private": true,
   "devDependencies": {

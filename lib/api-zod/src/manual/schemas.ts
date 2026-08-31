@@ -255,6 +255,7 @@ export const PersonSchema = z.object({
         "human-import",
         "scrape",
         "linkedin-enrichment",
+        "seed",
       ]),
       source_ref: z.string(), // e.g. "OIU_Z1.4.xlsx#sheet=contacts"
       imported_by: z.string().nullable(),
