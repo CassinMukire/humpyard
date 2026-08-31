@@ -16,6 +16,7 @@ import reviewQueueRouter from "./review-queue";
 import battleCardsRouter from "./battle-cards";
 import mondaySyncRouter from "./monday-sync";
 import linkedinRouter from "./linkedin";
+import countryScanRouter from "./country-scan";
 import { isDemoMode } from "../../lib/store-factory";
 
 const router = Router();
@@ -48,5 +49,6 @@ router.use(reviewQueueRouter);
 router.use(battleCardsRouter);
 router.use(mondaySyncRouter);
 router.use(linkedinRouter);
+router.use(countryScanRouter);
 
 export default router;

@@ -14,15 +14,63 @@ const __dirname = path.dirname(__filename);
 
 const app: Express = express();
 
-// Security headers (helmet). The default CSP is too strict for the v1 SPA
-// (we serve the built React app from this same origin), so we relax it
-// to the minimum needed.
+// Security headers (helmet).
+//
+// CSP: by default OFF in development (so Vite/HMR works without
+// inline-script sha256s). In production (NODE_ENV=production), enable a
+// strict CSP that allows the same-origin scripts/styles we actually use
+// (the built React app, the React Query fetches, the monday iframe if we
+// ever add one). Disable with `DISABLE_CSP=true` if a future feature
+// needs it.
+//
+// CORS: default open in development (localhost + Vite on :8080). In
+// production, restrict to `ALLOWED_ORIGINS` (comma-separated). Defaults
+// to the same host if unset.
+const isProd = process.env["NODE_ENV"] === "production";
+
 app.use(
   helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: isProd && process.env["DISABLE_CSP"] !== "true"
+      ? {
+          // Strict same-origin CSP for the built SPA. React + Vite emit
+          // inline <style> blocks for CSS-in-JS fallbacks, so 'unsafe-inline'
+          // is allowed on style-src. Scripts are file-based (no eval, no
+          // inline). Connect-src allows HTTPS Exa/OpenAI/monday/Proxycurl
+          // for the operator's actions.
+          useDefaults: false,
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            fontSrc: ["'self'", "data:"],
+            connectSrc: [
+              "'self'",
+              "https://api.monday.com",
+              "https://api.exa.ai",
+              "https://api.openai.com",
+              "https://nubela.co",
+            ],
+            frameAncestors: ["'none'"],
+            baseUri: ["'self'"],
+            formAction: ["'self'"],
+            objectSrc: ["'none'"],
+            upgradeInsecureRequests: [],
+          },
+        }
+      : false,
     crossOriginResourcePolicy: { policy: "same-site" },
+    // Defence-in-depth defaults
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    hsts: isProd ? { maxAge: 15552000, includeSubDomains: true } : false,
   }),
 );
+
+const allowedOrigins = process.env["ALLOWED_ORIGINS"]
+  ? process.env["ALLOWED_ORIGINS"].split(",").map((s) => s.trim()).filter(Boolean)
+  : isProd
+    ? [] // production: only same-origin
+    : ["http://localhost:8080", "http://127.0.0.1:8080"];
 
 app.use(
   pinoHttp({
@@ -43,7 +91,26 @@ app.use(
     },
   }),
 );
-app.use(cors());
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      // No Origin (curl, server-to-server) is always allowed.
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.length === 0) {
+        // Production default = same-origin only. CORS only blocks
+        // cross-origin browser requests; same-origin requests don't go
+        // through CORS at all.
+        return cb(null, true);
+      }
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(new Error(`CORS: origin ${origin} not in allow-list`));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Internal-Token"],
+    maxAge: 86400,
+  }),
+);
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 

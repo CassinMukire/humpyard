@@ -15,4 +15,35 @@ setAuthTokenGetter(() => {
   }
 });
 
+// PWA — service worker for offline shell at InnoTrans (W37 deliverable).
+// Strategy: stale-while-revalidate for the static UI, network-only for /api/*.
+// See artifacts/hump-yard-intel/public/sw.js. Registration is best-effort;
+// a SW registration failure must NOT block the SPA from loading.
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js", { scope: "/" })
+      .then((reg) => {
+        // Optional: surface a toast when an updated SW is waiting.
+        if (reg.waiting) {
+          reg.waiting.postMessage("SKIP_WAITING");
+        }
+        reg.addEventListener("updatefound", () => {
+          const next = reg.installing;
+          if (!next) return;
+          next.addEventListener("statechange", () => {
+            if (next.state === "installed" && navigator.serviceWorker.controller) {
+              // A new SW is installed and waiting. Trigger the swap on next
+              // navigation. We do not interrupt the current page.
+              console.info("[sw] update available, will activate on next load");
+            }
+          });
+        });
+      })
+      .catch((err) => {
+        console.warn("[sw] registration failed:", err);
+      });
+  });
+}
+
 createRoot(document.getElementById("root")!).render(<App />);

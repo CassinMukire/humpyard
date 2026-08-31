@@ -706,6 +706,360 @@ function seed(): void {
   };
   battleCards.set(axtoneCard.org_id, axtoneCard);
 
+  // ---------------------------------------------------------------------------
+  // DE — Germany (watchlist+ per scope cut: hand-curated, no auto extraction)
+  // Reference operator: DB Netz AG. Hump yard capex historically thin;
+  // focus on Dortmund, Maschen, Seddin and the "Deutschlandtakt" cargo hubs.
+  // ---------------------------------------------------------------------------
+  const de: Market = {
+    id: "de",
+    country_iso: "DE",
+    country_name: "Germany",
+    tier: "B",
+    posture: "WATCH",
+    verdict: {
+      value:
+        "DB Netz AG operates a thin hump yard network (Dortmund, Maschen, Seddin, Mannheim). Hump capex is secondary to S-Bahn + long-distance; window opens only on Deutschlandtakt milestones.",
+      source_url: "https://www.deutschebahn.com/de/infrastruktur",
+      retrieved_at: today,
+      confidence: "O",
+      verified_by: "human-import",
+    },
+    window_opens: "2027-01-01T00:00:00Z",
+    window_closes: "2028-12-31T00:00:00Z",
+    five_questions: {
+      know_yourself: {
+        value:
+          "DECEL has zero installed base in Germany. We need a reference site in the EU/CEE corridor first (Hallsberg is Sweden — not a German reference).",
+        source_url: "internal://decelsun-tzu-analysis",
+        retrieved_at: today,
+        confidence: "O",
+        verified_by: "human-import",
+      },
+      know_the_enemy: {
+        value:
+          "Axtone + Voestalpine are the two incumbents at DB Netz. Axtone has ~70% of installed base; Voestalpine the remainder. Knorr-Bremse does hydraulic retarders only.",
+        source_url: "https://www.deutschebahn.com/de/freight",
+        retrieved_at: today,
+        confidence: "O",
+        verified_by: "rule",
+      },
+      terrain: {
+        value:
+          "German yards are mixed-gauge friendly, electrified at 15kV AC, climate -20°C to +35°C. DECEL Rangerbroms is rated for this.",
+        source_url: "https://www.db-netz.de/en/technical-specifications",
+        retrieved_at: today,
+        confidence: "O",
+        verified_by: "rule",
+      },
+      timing: {
+        value:
+          "DB Netz capex is published 5-year forward. The 2026-2030 plan shows €3.2B for freight yards but only ~€140M is hump-specific. Watch the Q3 2026 plan revision for 2027 awards.",
+        source_url: "https://www.deutschebahn.com/de/investment-plan",
+        retrieved_at: today,
+        confidence: "O",
+        verified_by: "rule",
+      },
+      win_before_battle: {
+        value:
+          "Get DECEL on the Bundesnetzagentur vendor list (it's free) so we can bid on the next tender without 6-month qualification delay. Submit a position paper to DB Netz's Freight Infrastructure team by Q1 2027.",
+        source_url: "internal://decelsun-tzu-analysis",
+        retrieved_at: today,
+        confidence: "I",
+        verified_by: "human-import",
+      },
+    },
+    sources: [
+      validSrc("https://www.deutschebahn.com/de/infrastruktur", "DB Netz — Infrastructure"),
+      validSrc("https://www.deutschebahn.com/de/investment-plan", "DB Netz — Investment Plan 2026-2030"),
+    ],
+    posture_history: [
+      { posture: "WATCH", ts: "2025-06-15T00:00:00Z", actor: "engine", reason: "Initial market scan" },
+    ],
+    created_at: "2025-06-15T00:00:00Z",
+    updated_at: now,
+  };
+  markets.set(de.id, de);
+
+  const dbNetz: Org = {
+    id: "org_db_netz",
+    name: "DB Netz AG",
+    match_key: "db netz",
+    type: "authority",
+    market_ids: ["de"],
+    monday_item_id: null,
+    innotrans_target: true,
+    risk_facts: [],
+    sources: [validSrc("https://www.db-netz.de/en/about", "DB Netz — About")],
+    created_at: "2025-06-15T00:00:00Z",
+    updated_at: now,
+  };
+  orgs.set(dbNetz.id, dbNetz);
+
+  // DB Netz recon/relationship card — German decision-makers, no automated
+  // contact yet. Watchlist+ per scope cut: hand-curated content.
+  const dbNetzCard: BattleCard = {
+    org_id: dbNetz.id,
+    who_they_are:
+      "DB Netz AG — German rail infrastructure manager, subsidiary of Deutsche Bahn. ~5,500 km of network, 4 active hump yards (Dortmund, Maschen, Seddin, Mannheim).",
+    why_matters:
+      "InnoTrans 2026 is in Berlin. DB Netz's procurement team walks the floor. We need a credible position paper ready for the Q3 2026 plan revision.",
+    known_people: [],
+    relationship_status: "none",
+    suggested_questions: [
+      "When does the Q3 2026 investment plan revision land?",
+      "Which DB Netz director signs off on retarder system capex?",
+      "Is there a BNetzA vendor qualification process we'd need to enter first?",
+    ],
+    trap_to_avoid:
+      "DB Cargo (the freight operator) is NOT DB Netz (the infrastructure manager). They have separate procurement. Talk to the right one.",
+    sources: [validSrc("https://www.db-netz.de/en/about", "DB Netz — About")],
+    kind: "watchlist_plus",
+    recon_what_to_observe: [
+      "DB Netz booth staffing at InnoTrans 2026 (Hall 26 or similar)",
+      "Any new tender awards published in Q3 2026 plan revision",
+      "DB Cargo's stance on hump yard consolidation (rumoured to be in flight)",
+    ],
+    doctrine_version: 1,
+    doctrine_updated_at: now,
+    doctrine_updated_by: "cassin",
+  };
+  battleCards.set(dbNetzCard.org_id, dbNetzCard);
+
+  // ---------------------------------------------------------------------------
+  // KZ — Kazakhstan (watchlist+; reference site at Almaty already in DECEL's
+  // installed base, so the dossier is buyer-side context)
+  // ---------------------------------------------------------------------------
+  const kz: Market = {
+    id: "kz",
+    country_iso: "KZ",
+    country_name: "Kazakhstan",
+    tier: "B",
+    posture: "WARMUP",
+    verdict: {
+      value:
+        "Kazakhstan Temir Zholy (KTZ) is the national operator and a Middle Corridor linchpin. DECEL has an installed base at Almaty — the strategic lever is to grow that into a regional spec for the entire Trans-Caspian corridor.",
+      source_url: "https://railways.kz/en/about",
+      retrieved_at: today,
+      confidence: "O",
+      verified_by: "human-import",
+    },
+    window_opens: "2026-11-01T00:00:00Z",
+    window_closes: "2027-09-30T00:00:00Z",
+    five_questions: {
+      know_yourself: {
+        value:
+          "DECEL has the Almaty reference site (commissioned 2019). That's a foot in the door — we can credibly show a working installation, unlike in DE.",
+        source_url: "internal://decelsun-tzu-analysis",
+        retrieved_at: today,
+        confidence: "V",
+        verified_by: "human-import",
+      },
+      know_the_enemy: {
+        value:
+          "Axtone and a small Chinese vendor (CRRC subsidiary) compete here. Axtone is price-aggressive; CRRC is well-connected politically but not technically superior.",
+        source_url: "https://railways.kz/en/procurement",
+        retrieved_at: today,
+        confidence: "O",
+        verified_by: "rule",
+      },
+      terrain: {
+        value:
+          "Broad-gauge (1520mm), 25kV AC electrified mainline, climate -40°C to +45°C. DECEL Rangerbroms is rated for this — Almaty proves it.",
+        source_url: "https://railways.kz/en/technical-specifications",
+        retrieved_at: today,
+        confidence: "V",
+        verified_by: "rule",
+      },
+      timing: {
+        value:
+          "KTZ's 2026-2030 capex plan has 3 hump yard modernizations scheduled (Astana, Atyrau, Shymkent). The first tender (Astana) opens Q4 2026.",
+        source_url: "https://railways.kz/en/capex-plan",
+        retrieved_at: today,
+        confidence: "O",
+        verified_by: "rule",
+      },
+      win_before_battle: {
+        value:
+          "Get the DECEL spec written into KTZ's hump yard modernization technical reference (a direct spec pull, no tender). Best path: position paper to KTZ's VP Infrastructure (Almaty reference is the credibility anchor).",
+        source_url: "internal://decelsun-tzu-analysis",
+        retrieved_at: today,
+        confidence: "O",
+        verified_by: "human-import",
+      },
+    },
+    sources: [
+      validSrc("https://railways.kz/en/about", "KTZ — About"),
+      validSrc("https://railways.kz/en/capex-plan", "KTZ — Capex Plan 2026-2030"),
+    ],
+    posture_history: [
+      { posture: "WATCH", ts: "2025-03-10T00:00:00Z", actor: "engine", reason: "Initial market scan" },
+      { posture: "WARMUP", ts: "2026-04-01T00:00:00Z", actor: "cassin", reason: "Almaty reference site confirmed; capex plan published" },
+    ],
+    created_at: "2025-03-10T00:00:00Z",
+    updated_at: now,
+  };
+  markets.set(kz.id, kz);
+
+  const ktz: Org = {
+    id: "org_ktz",
+    name: "Kazakhstan Temir Zholy (KTZ)",
+    match_key: "ktz",
+    type: "authority",
+    market_ids: ["kz"],
+    monday_item_id: null,
+    innotrans_target: true,
+    risk_facts: [],
+    sources: [validSrc("https://railways.kz/en/about", "KTZ — About")],
+    created_at: "2025-03-10T00:00:00Z",
+    updated_at: now,
+  };
+  orgs.set(ktz.id, ktz);
+
+  const ktzCard: BattleCard = {
+    org_id: ktz.id,
+    who_they_are:
+      "Kazakhstan Temir Zholy (KTZ) — national rail operator and Middle Corridor anchor. 16,000 km network, 6 hump yards including the Almaty reference site (DECEL, 2019).",
+    why_matters:
+      "First DECEL-installed-base market outside Sweden. Position paper to VP Infrastructure can pull DECEL into KTZ's technical reference before the Astana tender opens Q4 2026.",
+    known_people: [],
+    relationship_status: "identified",
+    suggested_questions: [
+      "Is the Astana tender on schedule for Q4 2026?",
+      "Who signs off on KTZ's hump yard technical reference revisions?",
+      "What's the relationship between KTZ and UTY (Uzbekistan) on Trans-Caspian corridor specs?",
+    ],
+    trap_to_avoid:
+      "KTZ is the OPERATOR, not the infrastructure manager. The Trans-Caspian corridor is a different org (KTZ Express / KTZE). Don't conflate the two.",
+    sources: [validSrc("https://railways.kz/en/about", "KTZ — About")],
+    kind: "watchlist_plus",
+    recon_what_to_observe: [
+      "KTZ presence at Middle Corridor summit (Baku, November 2026)",
+      "Astana tender Q4 2026 published specification",
+      "Cooperation with UTY on joint procurement frameworks",
+    ],
+    doctrine_version: 1,
+    doctrine_updated_at: now,
+    doctrine_updated_by: "cassin",
+  };
+  battleCards.set(ktzCard.org_id, ktzCard);
+
+  // ---------------------------------------------------------------------------
+  // UZ — Uzbekistan (watchlist+; smaller market, transit relevance via MC)
+  // ---------------------------------------------------------------------------
+  const uz: Market = {
+    id: "uz",
+    country_iso: "UZ",
+    country_name: "Uzbekistan",
+    tier: "C",
+    posture: "WATCH",
+    verdict: {
+      value:
+        "O'zbekiston Temir Yo'llari (UTY) is a transit Middle Corridor player, not a primary DECEL target. Watch for the procurement framework that follows KTZ's spec — UTY tends to follow KTZ's lead with 12-18 months lag.",
+      source_url: "https://ut.uz/en/about",
+      retrieved_at: today,
+      confidence: "O",
+      verified_by: "human-import",
+    },
+    window_opens: "2027-06-01T00:00:00Z",
+    window_closes: "2028-12-31T00:00:00Z",
+    five_questions: {
+      know_yourself: {
+        value:
+          "DECEL has no installed base in UZ. Position is to follow KTZ's lead on the Middle Corridor spec — ride the coattail, don't lead.",
+        source_url: "internal://decelsun-tzu-analysis",
+        retrieved_at: today,
+        confidence: "O",
+        verified_by: "human-import",
+      },
+      know_the_enemy: {
+        value:
+          "Axtone is the incumbent (single-tender awarded 2017). DECEL's only path in is via the KTZ→UTY spec-pull — if KTZ's tech reference lists DECEL, UTY will follow.",
+        source_url: "https://ut.uz/en/procurement",
+        retrieved_at: today,
+        confidence: "O",
+        verified_by: "rule",
+      },
+      terrain: {
+        value:
+          "Broad-gauge (1520mm), 25kV AC electrified, climate -25°C to +45°C, dusty. Axtone's mechanical retarders struggle in the dust; DECEL's enclosed design is a real differentiator here.",
+        source_url: "https://ut.uz/en/technical-conditions",
+        retrieved_at: today,
+        confidence: "O",
+        verified_by: "rule",
+      },
+      timing: {
+        value:
+          "UTY publishes its capex plan annually in Q1. The 2027 plan is likely to mention 2 hump yard modernizations (Tashkent, Bukhara). Window opens ~Q2 2027.",
+        source_url: "https://ut.uz/en/capex-plan",
+        retrieved_at: today,
+        confidence: "O",
+        verified_by: "rule",
+      },
+      win_before_battle: {
+        value:
+          "Indirect play: get DECEL into KTZ's tech reference first (Q4 2026 Astana cycle), then ride the KTZ→UTY spec-pull in 2027.",
+        source_url: "internal://decelsun-tzu-analysis",
+        retrieved_at: today,
+        confidence: "I",
+        verified_by: "human-import",
+      },
+    },
+    sources: [
+      validSrc("https://ut.uz/en/about", "UTY — About"),
+      validSrc("https://ut.uz/en/capex-plan", "UTY — Capex Plan"),
+    ],
+    posture_history: [
+      { posture: "WATCH", ts: "2025-09-20T00:00:00Z", actor: "engine", reason: "Initial scan; deferred to MC +1" },
+    ],
+    created_at: "2025-09-20T00:00:00Z",
+    updated_at: now,
+  };
+  markets.set(uz.id, uz);
+
+  const uty: Org = {
+    id: "org_uty",
+    name: "O'zbekiston Temir Yo'llari (UTY)",
+    match_key: "uty",
+    type: "authority",
+    market_ids: ["uz"],
+    monday_item_id: null,
+    innotrans_target: true,
+    risk_facts: [],
+    sources: [validSrc("https://ut.uz/en/about", "UTY — About")],
+    created_at: "2025-09-20T00:00:00Z",
+    updated_at: now,
+  };
+  orgs.set(uty.id, uty);
+
+  const utyCard: BattleCard = {
+    org_id: uty.id,
+    who_they_are:
+      "O'zbekiston Temir Yo'llari (UTY) — Uzbekistan national rail. 4,700 km network, 2 hump yards (Tashkent, Bukhara). Transit relevance for the Middle Corridor.",
+    why_matters:
+      "Indirect play — get DECEL into KTZ's tech reference first, then ride the KTZ→UTY spec-pull. No direct UTY engagement in v1.",
+    known_people: [],
+    relationship_status: "none",
+    suggested_questions: [
+      "When is the next UTY capex plan revision (Q1 2027)?",
+      "Does UTY follow KTZ's technical reference or write its own?",
+      "What's UTY's relationship with the Middle Corridor consortium?",
+    ],
+    trap_to_avoid:
+      "Don't open a direct UTY conversation in v1 — they're a 12-18 month lag follow-on to KTZ. The v1 strategy is to land the spec in KTZ first.",
+    sources: [validSrc("https://ut.uz/en/about", "UTY — About")],
+    kind: "watchlist_plus",
+    recon_what_to_observe: [
+      "UTY's 2027 capex plan (Q1 2027 publication)",
+      "Whether UTY references KTZ's technical documentation",
+      "Middle Corridor consortium procurement framework progress",
+    ],
+    doctrine_version: 1,
+    doctrine_updated_at: now,
+    doctrine_updated_by: "cassin",
+  };
+  battleCards.set(utyCard.org_id, utyCard);
+
   // 2 review-queue items — to show the trust contract in action
   const jq1: ReviewQueueItem = {
     id: id("q"),

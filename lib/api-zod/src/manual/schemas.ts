@@ -401,8 +401,11 @@ export const BattleCardSchema = z.object({
   trap_to_avoid: z.string(),
   // 7. Sources
   sources: z.array(V1SourceLinkSchema),
-  // Card kind: relationship (default) or recon (for competitors)
-  kind: z.enum(["relationship", "recon"]),
+  // Card kind:
+  //   - "relationship" — buyer/authority card with known people
+  //   - "recon"        — competitor card; observer questions only
+  //   - "watchlist_plus" — hand-curated, no auto extraction (W36 scope cut)
+  kind: z.enum(["relationship", "recon", "watchlist_plus"]),
   // For "recon" cards: what to observe instead of relationship content
   recon_what_to_observe: z.array(z.string()).optional(),
   // Doctrine version tracking (§11.11)

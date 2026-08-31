@@ -94,10 +94,11 @@ export const reviewKindEnum = pgEnum("review_kind", [
   "source_link",
 ]);
 
-// Battle card kind (relationship vs competitor recon)
+// Battle card kind (relationship, competitor recon, or watchlist+)
 export const battleCardKindEnum = pgEnum("battle_card_kind", [
   "relationship",
   "recon",
+  "watchlist_plus",
 ]);
 
 // Doctrine content kind (for revision history)

@@ -34,25 +34,27 @@ const MONDAY_BOARD_PEOPLE_ID = process.env["MONDAY_BOARD_PEOPLE_ID"] ?? "PENDING
 
 // -----------------------------------------------------------------------------
 // Column IDs for the "DECEL — Relationer & Dialoger" board (id 18426688283).
-// Overridable via env so the wiring survives any board-id change in the future.
+// All overridable via env so the wiring survives any future board rename /
+// recreation. Set `MONDAY_BOARD_PEOPLE_COL_<KEY>` to override one column;
+// see `.env.production.example` for the full list.
 // -----------------------------------------------------------------------------
 const COL = {
-  name: "name",
-  organisation: "text_mm68tqgj",
-  roll: "text_mm686q5p",
-  email: "email_mm68d54h",
-  telefon: "text_mm68y7jy",
-  prio: "color_mm68rq6f",
-  dialoglage: "color_mm68q8ys",
-  kanaltyp: "color_mm68qsm6",
-  marknad: "color_mm68ay8",
-  forstaKontakt: "date_mm68qbk",
-  senasteKontakt: "date_mm686v4j",
-  deadline: "date_mm68yeqh",
-  varforPratar: "long_text_mm68ht6q",
-  varIgen: "long_text_mm68ekzg",
-  nastaSteg: "text_mm68p80x",
-  kalla: "text_mm68c05h",
+  name: process.env["MONDAY_BOARD_PEOPLE_COL_NAME"] ?? "name",
+  organisation: process.env["MONDAY_BOARD_PEOPLE_COL_ORGANISATION"] ?? "text_mm68tqgj",
+  roll: process.env["MONDAY_BOARD_PEOPLE_COL_ROLL"] ?? "text_mm686q5p",
+  email: process.env["MONDAY_BOARD_PEOPLE_COL_EMAIL"] ?? "email_mm68d54h",
+  telefon: process.env["MONDAY_BOARD_PEOPLE_COL_TELEFON"] ?? "text_mm68y7jy",
+  prio: process.env["MONDAY_BOARD_PEOPLE_COL_PRIO"] ?? "color_mm68rq6f",
+  dialoglage: process.env["MONDAY_BOARD_PEOPLE_COL_DIALOGLAGE"] ?? "color_mm68q8ys",
+  kanaltyp: process.env["MONDAY_BOARD_PEOPLE_COL_KANALTYP"] ?? "color_mm68qsm6",
+  marknad: process.env["MONDAY_BOARD_PEOPLE_COL_MARKNAD"] ?? "color_mm68ay8",
+  forstaKontakt: process.env["MONDAY_BOARD_PEOPLE_COL_FORSTA_KONTAKT"] ?? "date_mm68qbk",
+  senasteKontakt: process.env["MONDAY_BOARD_PEOPLE_COL_SENASTE_KONTAKT"] ?? "date_mm686v4j",
+  deadline: process.env["MONDAY_BOARD_PEOPLE_COL_DEADLINE"] ?? "date_mm68yeqh",
+  varforPratar: process.env["MONDAY_BOARD_PEOPLE_COL_VARFOR_PRATAR"] ?? "long_text_mm68ht6q",
+  varIgen: process.env["MONDAY_BOARD_PEOPLE_COL_VAR_IGEN"] ?? "long_text_mm68ekzg",
+  nastaSteg: process.env["MONDAY_BOARD_PEOPLE_COL_NASTA_STEG"] ?? "text_mm68p80x",
+  kalla: process.env["MONDAY_BOARD_PEOPLE_COL_KALLA"] ?? "text_mm68c05h",
 } as const;
 
 // -----------------------------------------------------------------------------

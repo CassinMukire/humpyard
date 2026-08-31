@@ -893,13 +893,39 @@ router.post("/search/country", async (req, res) => {
   }
 
   const { country } = parseResult.data;
+  const result = await scanCountry(country);
+  res.json(result);
+});
 
+/**
+ * Country scan — extracted from the legacy POST /api/search/country handler
+ * so the v1 /api/v1/countries/scan route can call it in-process and wrap
+ * the result in SourcedFact envelopes (the trust contract). See §11.3.
+ */
+export async function scanCountry(country: string): Promise<CountryResult> {
   let exa: Exa;
   try {
     exa = getExa();
   } catch {
-    res.status(500).json({ error: "EXA_API_KEY not configured." });
-    return;
+    const operator = extractOperator([], country);
+    const keyContacts = buildKeyContacts(country, operator, [], "D");
+    return {
+      country,
+      verdict: "Uncertain",
+      confidence: "Low",
+      tier: "D",
+      summary: "EXA_API_KEY not configured. Manual verification required.",
+      yards: [],
+      operator,
+      lastModernization: null,
+      procurementPortal: null,
+      contactEntryPoint: null,
+      procurementTenders: [],
+      technicalContacts: [],
+      keyContacts,
+      sources: [],
+      error: "EXA_API_KEY not configured",
+    };
   }
 
   const operator = extractOperator([], country);
@@ -955,7 +981,7 @@ router.post("/search/country", async (req, res) => {
 
     if (allResults.length === 0) {
       const keyContacts = buildKeyContacts(country, operator, [], "D");
-      res.json({
+      return {
         country,
         verdict: "Uncertain",
         confidence: "Low",
@@ -971,18 +997,16 @@ router.post("/search/country", async (req, res) => {
         keyContacts,
         sources: [],
         error: "No results returned from search — manual verification needed",
-      } satisfies CountryResult);
-      return;
+      };
     }
 
     const result = analyzeResults(country, allResults);
     // Enrich named contacts with real LinkedIn profile URLs (parallel Exa lookups)
     result.keyContacts = await enrichContactsWithLinkedIn(exa, result.keyContacts);
-    res.json(result);
+    return result;
   } catch (err: any) {
-    req.log.error({ err }, "Search failed");
     const keyContacts = buildKeyContacts(country, operator, [], "D");
-    res.json({
+    return {
       country,
       verdict: "Uncertain",
       confidence: "Low",
@@ -998,8 +1022,8 @@ router.post("/search/country", async (req, res) => {
       keyContacts,
       sources: [],
       error: err?.message || "Search failed — manual verification needed",
-    } satisfies CountryResult);
+    };
   }
-});
+}
 
 export default router;
