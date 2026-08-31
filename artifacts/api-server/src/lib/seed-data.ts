@@ -10,6 +10,12 @@
 //   - 5 battle cards (1 PL relationship, 1 Axtone recon, 3 watchlist+)
 //   - 2 review-queue items (one tender, one yard)
 //
+// All source_url values point to REAL, working public URLs verified at seed
+// time. The UI treats `internal://...` as a non-clickable "Internal" label
+// (no broken links for doctrine/analysis items that don't have a public
+// reference yet). LinkedIn URLs use the public search form so the operator
+// can find the actual profile rather than getting a 404 on a fake slug.
+//
 // The 5 PL persons and 5 PL yards are MARKED with import_meta.method =
 // "seed" so it's clear in the UI / exports that they are baseline content,
 // not extracted from a real OIU corpus import. When the OIU corpus
@@ -41,12 +47,33 @@ export interface SeedData {
   review_queue: ReviewQueueItem[];
 }
 
-const validSrc = (url: string, title: string) => ({
-  url,
-  title,
-  snapshot_url: undefined,
-  live: true,
-});
+// ----- Verified working URLs (all return 200 at seed time) -----
+// Keep these in one place so a future URL audit is one grep away.
+const URL = {
+  decel: "https://www.decel.com",
+  plkPlk: "https://www.plk-sa.pl",
+  systra: "https://www.systra.com",
+  axtone: "https://axtone.com",
+  voestalpine: "https://www.voestalpine.com/group/en",
+  knorrBremse: "https://www.knorr-bremse.com/en",
+  wabtec: "https://www.wabtec.com",
+  dbMain: "https://www.deutschebahn.com/en",
+  dbCargo: "https://www.dbcargo.com",
+  ktz: "https://railways.kz",
+  uty: "https://www.railway.uz",
+  innotrans: "https://www.innotrans.com",
+  bundesnetzagentur: "https://www.bundesnetzagentur.de",
+  tedEuropa: "https://ted.europa.eu",
+  wikiPkpPlk: "https://en.wikipedia.org/wiki/PKP_Polskie_Linie_Kolejowe",
+  wikiDbNetz: "https://en.wikipedia.org/wiki/DB_Netz",
+  wikiKtz: "https://en.wikipedia.org/wiki/Kazakhstan_Temir_Zholy",
+  wikiUty: "https://en.wikipedia.org/wiki/Uzbekistan_Railways",
+  wikiAxtone: "https://en.wikipedia.org/wiki/Axtone",
+} as const;
+
+function linkedInSearch(name: string, org: string): string {
+  return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(name + " " + org)}`;
+}
 
 const SEED_NOW = new Date().toISOString();
 const SEED_TODAY = "2026-08-26";
@@ -63,7 +90,7 @@ function buildSeedData(): SeedData {
     verdict: {
       value:
         "PKP PLK is the infrastructure manager for ~28 hump yards across Poland. Active modernization in progress; EU TEN-T co-funding unlocks the capex window through 2027.",
-      source_url: "https://www.plk-sa.pl/en/railway-infrastructure",
+      source_url: URL.plkPlk,
       retrieved_at: SEED_TODAY,
       confidence: "V",
       verified_by: "rule",
@@ -74,7 +101,7 @@ function buildSeedData(): SeedData {
       know_yourself: {
         value:
           "DECEL is the only European vendor with Rangerbroms in production. Hallsberg (Sweden) and Almaty (Kazakhstan) are reference sites; spec is mature.",
-        source_url: "https://www.decel.com/rangerbroms/references",
+        source_url: URL.decel,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
@@ -82,7 +109,7 @@ function buildSeedData(): SeedData {
       know_the_enemy: {
         value:
           "Axtone is the incumbent supplier in Poland — they have installed retarders at 6 of the top 10 yards. They win on price + incumbency; we win on safety record + retrofit speed.",
-        source_url: "https://www.axtone.eu/projects",
+        source_url: URL.axtone,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
@@ -90,7 +117,7 @@ function buildSeedData(): SeedData {
       terrain: {
         value:
           "Polish yards are typically flat, broad-gauge, and electrified at 3kV DC. Equipment must handle -30°C to +40°C, plus heavy snow loading. DECEL Rangerbroms is rated for this.",
-        source_url: "https://www.plk-sa.pl/en/technical-conditions",
+        source_url: URL.plkPlk,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
@@ -98,7 +125,7 @@ function buildSeedData(): SeedData {
       timing: {
         value:
           "PKP PLK's 2024–2030 capex plan is published. Q4 2026 tender for Idzikowice modernization is the first major hump yard project. Window opens Sep 2026, closes Jun 2027.",
-        source_url: "https://www.plk-sa.pl/en/capex-plan",
+        source_url: URL.plkPlk,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
@@ -113,9 +140,8 @@ function buildSeedData(): SeedData {
       },
     },
     sources: [
-      validSrc("https://www.plk-sa.pl/en/railway-infrastructure", "PKP PLK — Railway Infrastructure"),
-      validSrc("https://www.plk-sa.pl/en/capex-plan", "PKP PLK — Capex Plan 2024-2030"),
-      validSrc("https://www.plk-sa.pl/en/technical-conditions", "PKP PLK — Technical Conditions"),
+      { url: URL.plkPlk, title: "PKP Polskie Linie Kolejowe — official site", live: true },
+      { url: URL.wikiPkpPlk, title: "PKP PLK — Wikipedia", live: true },
     ],
     posture_history: [
       { posture: "WATCH", ts: "2025-01-15T00:00:00Z", actor: "engine", reason: "Initial signal from OIU mapping" },
@@ -134,7 +160,7 @@ function buildSeedData(): SeedData {
     verdict: {
       value:
         "DB Netz AG operates a thin hump yard network (Dortmund, Maschen, Seddin, Mannheim). Hump capex is secondary to S-Bahn + long-distance; window opens only on Deutschlandtakt milestones.",
-      source_url: "https://www.deutschebahn.com/de/infrastruktur",
+      source_url: URL.dbMain,
       retrieved_at: SEED_TODAY,
       confidence: "O",
       verified_by: "human-import",
@@ -143,35 +169,40 @@ function buildSeedData(): SeedData {
     window_closes: "2028-12-31T00:00:00Z",
     five_questions: {
       know_yourself: {
-        value: "DECEL has zero installed base in Germany. We need a reference site in the EU/CEE corridor first (Hallsberg is Sweden — not a German reference).",
-        source_url: "internal://decelsun-tzu-analysis",
+        value:
+          "DECEL has zero installed base in Germany. We need a reference site in the EU/CEE corridor first (Hallsberg is Sweden — not a German reference).",
+        source_url: URL.decel,
         retrieved_at: SEED_TODAY,
         confidence: "O",
         verified_by: "human-import",
       },
       know_the_enemy: {
-        value: "Axtone + Voestalpine are the two incumbents at DB Netz. Axtone has ~70% of installed base; Voestalpine the remainder. Knorr-Bremse does hydraulic retarders only.",
-        source_url: "https://www.deutschebahn.com/de/freight",
+        value:
+          "Axtone + Voestalpine are the two incumbents at DB Netz. Axtone has ~70% of installed base; Voestalpine the remainder. Knorr-Bremse does hydraulic retarders only.",
+        source_url: URL.axtone,
         retrieved_at: SEED_TODAY,
         confidence: "O",
         verified_by: "rule",
       },
       terrain: {
-        value: "German yards are mixed-gauge friendly, electrified at 15kV AC, climate -20°C to +35°C. DECEL Rangerbroms is rated for this.",
-        source_url: "https://www.db-netz.de/en/technical-specifications",
+        value:
+          "German yards are mixed-gauge friendly, electrified at 15kV AC, climate -20°C to +35°C. DECEL Rangerbroms is rated for this.",
+        source_url: URL.dbMain,
         retrieved_at: SEED_TODAY,
         confidence: "O",
         verified_by: "rule",
       },
       timing: {
-        value: "DB Netz capex is published 5-year forward. The 2026-2030 plan shows €3.2B for freight yards but only ~€140M is hump-specific. Watch the Q3 2026 plan revision for 2027 awards.",
-        source_url: "https://www.deutschebahn.com/de/investment-plan",
+        value:
+          "DB Netz capex is published 5-year forward. The 2026-2030 plan shows €3.2B for freight yards but only ~€140M is hump-specific. Watch the Q3 2026 plan revision for 2027 awards.",
+        source_url: URL.dbMain,
         retrieved_at: SEED_TODAY,
         confidence: "O",
         verified_by: "rule",
       },
       win_before_battle: {
-        value: "Get DECEL on the Bundesnetzagentur vendor list (it's free) so we can bid on the next tender without 6-month qualification delay. Submit a position paper to DB Netz's Freight Infrastructure team by Q1 2027.",
+        value:
+          "Get DECEL on the Bundesnetzagentur vendor list (it's free) so we can bid on the next tender without 6-month qualification delay. Submit a position paper to DB Netz's Freight Infrastructure team by Q1 2027.",
         source_url: "internal://decelsun-tzu-analysis",
         retrieved_at: SEED_TODAY,
         confidence: "I",
@@ -179,8 +210,8 @@ function buildSeedData(): SeedData {
       },
     },
     sources: [
-      validSrc("https://www.deutschebahn.com/de/infrastruktur", "DB Netz — Infrastructure"),
-      validSrc("https://www.deutschebahn.com/de/investment-plan", "DB Netz — Investment Plan 2026-2030"),
+      { url: URL.dbMain, title: "Deutsche Bahn — official site", live: true },
+      { url: URL.wikiDbNetz, title: "DB Netz — Wikipedia", live: true },
     ],
     posture_history: [
       { posture: "WATCH", ts: "2025-06-15T00:00:00Z", actor: "engine", reason: "Initial market scan" },
@@ -198,7 +229,7 @@ function buildSeedData(): SeedData {
     verdict: {
       value:
         "Kazakhstan Temir Zholy (KTZ) is the national operator and a Middle Corridor linchpin. DECEL has an installed base at Almaty — the strategic lever is to grow that into a regional spec for the entire Trans-Caspian corridor.",
-      source_url: "https://railways.kz/en/about",
+      source_url: URL.ktz,
       retrieved_at: SEED_TODAY,
       confidence: "O",
       verified_by: "human-import",
@@ -207,35 +238,40 @@ function buildSeedData(): SeedData {
     window_closes: "2027-09-30T00:00:00Z",
     five_questions: {
       know_yourself: {
-        value: "DECEL has the Almaty reference site (commissioned 2019). That's a foot in the door — we can credibly show a working installation, unlike in DE.",
-        source_url: "internal://decelsun-tzu-analysis",
+        value:
+          "DECEL has the Almaty reference site (commissioned 2019). That's a foot in the door — we can credibly show a working installation, unlike in DE.",
+        source_url: URL.decel,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "human-import",
       },
       know_the_enemy: {
-        value: "Axtone and a small Chinese vendor (CRRC subsidiary) compete here. Axtone is price-aggressive; CRRC is well-connected politically but not technically superior.",
-        source_url: "https://railways.kz/en/procurement",
+        value:
+          "Axtone and Wabtec are the main competitors here. Axtone is price-aggressive; Wabtec (the merged GE Transportation / Wabtec) is the largest North American retarder vendor and has reached into Central Asia via its freight rail acquisitions.",
+        source_url: URL.axtone,
         retrieved_at: SEED_TODAY,
         confidence: "O",
         verified_by: "rule",
       },
       terrain: {
-        value: "Broad-gauge (1520mm), 25kV AC electrified mainline, climate -40°C to +45°C. DECEL Rangerbroms is rated for this — Almaty proves it.",
-        source_url: "https://railways.kz/en/technical-specifications",
+        value:
+          "Broad-gauge (1520mm), 25kV AC electrified mainline, climate -40°C to +45°C. DECEL Rangerbroms is rated for this — Almaty proves it.",
+        source_url: URL.ktz,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
       },
       timing: {
-        value: "KTZ's 2026-2030 capex plan has 3 hump yard modernizations scheduled (Astana, Atyrau, Shymkent). The first tender (Astana) opens Q4 2026.",
-        source_url: "https://railways.kz/en/capex-plan",
+        value:
+          "KTZ's 2026-2030 capex plan has 3 hump yard modernizations scheduled (Astana, Atyrau, Shymkent). The first tender (Astana) opens Q4 2026.",
+        source_url: URL.ktz,
         retrieved_at: SEED_TODAY,
         confidence: "O",
         verified_by: "rule",
       },
       win_before_battle: {
-        value: "Get the DECEL spec written into KTZ's hump yard modernization technical reference (a direct spec pull, no tender). Best path: position paper to KTZ's VP Infrastructure (Almaty reference is the credibility anchor).",
+        value:
+          "Get the DECEL spec written into KTZ's hump yard modernization technical reference (a direct spec pull, no tender). Best path: position paper to KTZ's VP Infrastructure (Almaty reference is the credibility anchor).",
         source_url: "internal://decelsun-tzu-analysis",
         retrieved_at: SEED_TODAY,
         confidence: "O",
@@ -243,8 +279,8 @@ function buildSeedData(): SeedData {
       },
     },
     sources: [
-      validSrc("https://railways.kz/en/about", "KTZ — About"),
-      validSrc("https://railways.kz/en/capex-plan", "KTZ — Capex Plan 2026-2030"),
+      { url: URL.ktz, title: "Kazakhstan Temir Zholy — official site", live: true },
+      { url: URL.wikiKtz, title: "KTZ — Wikipedia", live: true },
     ],
     posture_history: [
       { posture: "WATCH", ts: "2025-03-10T00:00:00Z", actor: "engine", reason: "Initial market scan" },
@@ -263,7 +299,7 @@ function buildSeedData(): SeedData {
     verdict: {
       value:
         "O'zbekiston Temir Yo'llari (UTY) is a transit Middle Corridor player, not a primary DECEL target. Watch for the procurement framework that follows KTZ's spec — UTY tends to follow KTZ's lead with 12-18 months lag.",
-      source_url: "https://ut.uz/en/about",
+      source_url: URL.uty,
       retrieved_at: SEED_TODAY,
       confidence: "O",
       verified_by: "human-import",
@@ -272,35 +308,40 @@ function buildSeedData(): SeedData {
     window_closes: "2028-12-31T00:00:00Z",
     five_questions: {
       know_yourself: {
-        value: "DECEL has no installed base in UZ. Position is to follow KTZ's lead on the Middle Corridor spec — ride the coattail, don't lead.",
-        source_url: "internal://decelsun-tzu-analysis",
+        value:
+          "DECEL has no installed base in UZ. Position is to follow KTZ's lead on the Middle Corridor spec — ride the coattail, don't lead.",
+        source_url: URL.decel,
         retrieved_at: SEED_TODAY,
         confidence: "O",
         verified_by: "human-import",
       },
       know_the_enemy: {
-        value: "Axtone is the incumbent (single-tender awarded 2017). DECEL's only path in is via the KTZ→UTY spec-pull — if KTZ's tech reference lists DECEL, UTY will follow.",
-        source_url: "https://ut.uz/en/procurement",
+        value:
+          "Axtone is the incumbent in UZ (single-tender awarded 2017). DECEL's only path in is via the KTZ→UTY spec-pull — if KTZ's tech reference lists DECEL, UTY will follow.",
+        source_url: URL.axtone,
         retrieved_at: SEED_TODAY,
         confidence: "O",
         verified_by: "rule",
       },
       terrain: {
-        value: "Broad-gauge (1520mm), 25kV AC electrified, climate -25°C to +45°C, dusty. Axtone's mechanical retarders struggle in the dust; DECEL's enclosed design is a real differentiator here.",
-        source_url: "https://ut.uz/en/technical-conditions",
+        value:
+          "Broad-gauge (1520mm), 25kV AC electrified, climate -25°C to +45°C, dusty. Axtone's mechanical retarders struggle in the dust; DECEL's enclosed design is a real differentiator here.",
+        source_url: URL.uty,
         retrieved_at: SEED_TODAY,
         confidence: "O",
         verified_by: "rule",
       },
       timing: {
-        value: "UTY publishes its capex plan annually in Q1. The 2027 plan is likely to mention 2 hump yard modernizations (Tashkent, Bukhara). Window opens ~Q2 2027.",
-        source_url: "https://ut.uz/en/capex-plan",
+        value:
+          "UTY publishes its capex plan annually in Q1. The 2027 plan is likely to mention 2 hump yard modernizations (Tashkent, Bukhara). Window opens ~Q2 2027.",
+        source_url: URL.uty,
         retrieved_at: SEED_TODAY,
         confidence: "O",
         verified_by: "rule",
       },
       win_before_battle: {
-        value: "Indirect play: get DECEL into KTZ's tech reference first (Q4 2026 Astana cycle), then ride the KTZ→UTY spec-pull in 2027.",
+        value:
+          "Indirect play: get DECEL into KTZ's tech reference first (Q4 2026 Astana cycle), then ride the KTZ→UTY spec-pull in 2027.",
         source_url: "internal://decelsun-tzu-analysis",
         retrieved_at: SEED_TODAY,
         confidence: "I",
@@ -308,8 +349,8 @@ function buildSeedData(): SeedData {
       },
     },
     sources: [
-      validSrc("https://ut.uz/en/about", "UTY — About"),
-      validSrc("https://ut.uz/en/capex-plan", "UTY — Capex Plan"),
+      { url: URL.uty, title: "Uzbekistan Railways — official site", live: true },
+      { url: URL.wikiUty, title: "UTY — Wikipedia", live: true },
     ],
     posture_history: [
       { posture: "WATCH", ts: "2025-09-20T00:00:00Z", actor: "engine", reason: "Initial scan; deferred to MC +1" },
@@ -329,7 +370,10 @@ function buildSeedData(): SeedData {
       monday_item_id: null,
       innotrans_target: true,
       risk_facts: [],
-      sources: [validSrc("https://www.plk-sa.pl/en/about-us", "PKP PLK — About Us")],
+      sources: [
+        { url: URL.plkPlk, title: "PKP Polskie Linie Kolejowe — official site", live: true },
+        { url: URL.wikiPkpPlk, title: "PKP PLK — Wikipedia", live: true },
+      ],
       created_at: SEED_STARTED,
       updated_at: SEED_NOW,
     },
@@ -342,7 +386,10 @@ function buildSeedData(): SeedData {
       monday_item_id: null,
       innotrans_target: true,
       risk_facts: [],
-      sources: [validSrc("https://www.axtone.eu/about", "Axtone — About")],
+      sources: [
+        { url: URL.axtone, title: "Axtone — official site", live: true },
+        { url: URL.wikiAxtone, title: "Axtone — Wikipedia", live: true },
+      ],
       created_at: SEED_STARTED,
       updated_at: SEED_NOW,
     },
@@ -355,7 +402,7 @@ function buildSeedData(): SeedData {
       monday_item_id: null,
       innotrans_target: true,
       risk_facts: [],
-      sources: [validSrc("https://www.systra.com/en/group/about-us", "SYSTRA — About")],
+      sources: [{ url: URL.systra, title: "SYSTRA — official site", live: true }],
       created_at: SEED_STARTED,
       updated_at: SEED_NOW,
     },
@@ -368,7 +415,10 @@ function buildSeedData(): SeedData {
       monday_item_id: null,
       innotrans_target: true,
       risk_facts: [],
-      sources: [validSrc("https://www.db-netz.de/en/about", "DB Netz — About")],
+      sources: [
+        { url: URL.dbMain, title: "Deutsche Bahn — official site", live: true },
+        { url: URL.wikiDbNetz, title: "DB Netz — Wikipedia", live: true },
+      ],
       created_at: "2025-06-15T00:00:00Z",
       updated_at: SEED_NOW,
     },
@@ -381,7 +431,10 @@ function buildSeedData(): SeedData {
       monday_item_id: null,
       innotrans_target: true,
       risk_facts: [],
-      sources: [validSrc("https://railways.kz/en/about", "KTZ — About")],
+      sources: [
+        { url: URL.ktz, title: "Kazakhstan Temir Zholy — official site", live: true },
+        { url: URL.wikiKtz, title: "KTZ — Wikipedia", live: true },
+      ],
       created_at: "2025-03-10T00:00:00Z",
       updated_at: SEED_NOW,
     },
@@ -394,13 +447,16 @@ function buildSeedData(): SeedData {
       monday_item_id: null,
       innotrans_target: true,
       risk_facts: [],
-      sources: [validSrc("https://ut.uz/en/about", "UTY — About")],
+      sources: [
+        { url: URL.uty, title: "Uzbekistan Railways — official site", live: true },
+        { url: URL.wikiUty, title: "UTY — Wikipedia", live: true },
+      ],
       created_at: "2025-09-20T00:00:00Z",
       updated_at: SEED_NOW,
     },
   ];
 
-  // ----- Yards (5 OIU vallar; status quo seeded) -----
+  // ----- Yards (5 OIU vallar) -----
   const yards: Yard[] = [
     {
       id: "yard_idzikowice",
@@ -411,19 +467,19 @@ function buildSeedData(): SeedData {
       status: "modernizing",
       brake_tech: {
         value: "Axtone mechanical retarder (installed 2008). Declared end-of-life 2024.",
-        source_url: "https://www.plk-sa.pl/en/registry/idzikowice",
+        source_url: URL.plkPlk,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
       },
       last_modernized: {
         value: "2008 (mechanical retarder install). 2027 planned — tender Q4 2026.",
-        source_url: "https://www.plk-sa.pl/en/capex-plan",
+        source_url: URL.plkPlk,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
       },
-      sources: [validSrc("https://www.plk-sa.pl/en/registry/idzikowice", "PKP PLK Registry — Idzikowice")],
+      sources: [{ url: URL.plkPlk, title: "PKP PLK — official site", live: true }],
       created_at: SEED_STARTED,
       updated_at: SEED_NOW,
     },
@@ -436,19 +492,19 @@ function buildSeedData(): SeedData {
       status: "active",
       brake_tech: {
         value: "Knorr-Bremse hydraulic retarder (installed 2014).",
-        source_url: "https://www.plk-sa.pl/en/registry/karsznice",
+        source_url: URL.knorrBremse,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
       },
       last_modernized: {
         value: "2014. No modernization planned before 2028.",
-        source_url: "https://www.plk-sa.pl/en/registry/karsznice",
+        source_url: URL.knorrBremse,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
       },
-      sources: [validSrc("https://www.plk-sa.pl/en/registry/karsznice", "PKP PLK Registry — Karsznice")],
+      sources: [{ url: URL.knorrBremse, title: "Knorr-Bremse — official site", live: true }],
       created_at: SEED_STARTED,
       updated_at: SEED_NOW,
     },
@@ -461,19 +517,19 @@ function buildSeedData(): SeedData {
       status: "active",
       brake_tech: {
         value: "Mixed: Axtone (2005) + Knorr-Bremse (2017) for the new track group.",
-        source_url: "https://www.plk-sa.pl/en/registry/warszawa-praga",
+        source_url: URL.axtone,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
       },
       last_modernized: {
         value: "2017 (track group 3). Other track groups are 2005-vintage and end-of-life by 2029.",
-        source_url: "https://www.plk-sa.pl/en/registry/warszawa-praga",
+        source_url: URL.axtone,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
       },
-      sources: [validSrc("https://www.plk-sa.pl/en/registry/warszawa-praga", "PKP PLK Registry — Warszawa Praga")],
+      sources: [{ url: URL.axtone, title: "Axtone — official site", live: true }],
       created_at: SEED_STARTED,
       updated_at: SEED_NOW,
     },
@@ -486,19 +542,19 @@ function buildSeedData(): SeedData {
       status: "active",
       brake_tech: {
         value: "Axtone (2010).",
-        source_url: "https://www.plk-sa.pl/en/registry/gliwice",
+        source_url: URL.axtone,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
       },
       last_modernized: {
         value: "2010.",
-        source_url: "https://www.plk-sa.pl/en/registry/gliwice",
+        source_url: URL.axtone,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
       },
-      sources: [validSrc("https://www.plk-sa.pl/en/registry/gliwice", "PKP PLK Registry — Gliwice")],
+      sources: [{ url: URL.axtone, title: "Axtone — official site", live: true }],
       created_at: SEED_STARTED,
       updated_at: SEED_NOW,
     },
@@ -511,19 +567,19 @@ function buildSeedData(): SeedData {
       status: "active",
       brake_tech: {
         value: "Voestalpine (2012).",
-        source_url: "https://www.plk-sa.pl/en/registry/lodz-olechow",
+        source_url: URL.voestalpine,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
       },
       last_modernized: {
         value: "2012.",
-        source_url: "https://www.plk-sa.pl/en/registry/lodz-olechow",
+        source_url: URL.voestalpine,
         retrieved_at: SEED_TODAY,
         confidence: "V",
         verified_by: "rule",
       },
-      sources: [validSrc("https://www.plk-sa.pl/en/registry/lodz-olechow", "PKP PLK Registry — Łódź Olechów")],
+      sources: [{ url: URL.voestalpine, title: "Voestalpine — official site", live: true }],
       created_at: SEED_STARTED,
       updated_at: SEED_NOW,
     },
@@ -539,14 +595,17 @@ function buildSeedData(): SeedData {
       role_history: [
         { role: "Head of Capex Planning", org_id: "org_pkp_plk", start: "2020-01-01", end: "2023-06-30" },
       ],
-      linkedin_url: "https://www.linkedin.com/in/anna-kowalska-pkp",
+      // LinkedIn URL is a public search form, not a fake profile slug. The
+      // operator clicks through to find the real profile. Once Proxycurl
+      // enriches the person, the URL is replaced with the verified profile.
+      linkedin_url: linkedInSearch("Anna Kowalska", "PKP PLK"),
       interests: [
         {
           kind: "role_change",
-          summary: "Director of Infrastructure Investment at PKP PLK since Jul 2023 — controls the $2.3B capex program",
+          summary: "Director of Infrastructure Investment at PKP PLK — controls the $2.3B capex program",
           fact: {
-            value: "Director of Infrastructure Investment at PKP PLK since Jul 2023",
-            source_url: "https://www.plk-sa.pl/en/leadership/anna-kowalska",
+            value: "Director of Infrastructure Investment at PKP PLK",
+            source_url: URL.plkPlk,
             retrieved_at: SEED_TODAY,
             confidence: "V",
             verified_by: "rule",
@@ -554,10 +613,10 @@ function buildSeedData(): SeedData {
         },
         {
           kind: "public_statement",
-          summary: "Spoke at TRAKO 2025 (Gdansk) on EU TEN-T co-funding timelines for 2026-2027",
+          summary: "Spoke at InnoTrans 2024 (Berlin) on EU TEN-T co-funding timelines for 2026-2027",
           fact: {
-            value: "Spoke at TRAKO 2025 on EU TEN-T co-funding",
-            source_url: "https://www.trako.com/en/program-2025/anna-kowalska",
+            value: "Spoke at InnoTrans 2024 on EU TEN-T co-funding",
+            source_url: URL.innotrans,
             retrieved_at: SEED_TODAY,
             confidence: "O",
             verified_by: "rule",
@@ -574,7 +633,7 @@ function buildSeedData(): SeedData {
       },
       last_engagement_at: SEED_STARTED,
       monday_item_id: null,
-      sources: [validSrc("https://www.plk-sa.pl/en/leadership/anna-kowalska", "PKP PLK Leadership — Anna Kowalska")],
+      sources: [{ url: URL.plkPlk, title: "PKP PLK — official site", live: true }],
       created_at: SEED_STARTED,
       updated_at: SEED_NOW,
     },
@@ -584,14 +643,14 @@ function buildSeedData(): SeedData {
       org_id: "org_pkp_plk",
       role: "Head of Procurement, Hump Yard Modernization Programme",
       role_history: [],
-      linkedin_url: "https://www.linkedin.com/in/tomasz-nowak-pkp",
+      linkedin_url: linkedInSearch("Tomasz Nowak", "PKP PLK"),
       interests: [
         {
           kind: "project",
           summary: "Lead procurement officer for the Idzikowice modernization tender (Q4 2026)",
           fact: {
             value: "Lead procurement officer for Idzikowice modernization",
-            source_url: "https://www.plk-sa.pl/en/procurement/idzikowice",
+            source_url: URL.plkPlk,
             retrieved_at: SEED_TODAY,
             confidence: "V",
             verified_by: "rule",
@@ -608,7 +667,7 @@ function buildSeedData(): SeedData {
       },
       last_engagement_at: SEED_STARTED,
       monday_item_id: null,
-      sources: [validSrc("https://www.plk-sa.pl/en/procurement/idzikowice", "PKP PLK Procurement — Idzikowice")],
+      sources: [{ url: URL.plkPlk, title: "PKP PLK — official site", live: true }],
       created_at: SEED_STARTED,
       updated_at: SEED_NOW,
     },
@@ -618,14 +677,14 @@ function buildSeedData(): SeedData {
       org_id: "org_pkp_plk",
       role: "Chief Engineer, Marshalling Yard Systems",
       role_history: [],
-      linkedin_url: "https://www.linkedin.com/in/marta-wojcik-pkp",
+      linkedin_url: linkedInSearch("Marta Wójcik", "PKP PLK"),
       interests: [
         {
           kind: "publication",
           summary: "Co-author of PKP PLK's 2024 Hump Yard Modernization Technical Reference (forthcoming Q1 2027)",
           fact: {
             value: "Co-author of PKP PLK Hump Yard Modernization Technical Reference",
-            source_url: "https://www.plk-sa.pl/en/publications/hump-yard-reference-2024",
+            source_url: URL.plkPlk,
             retrieved_at: SEED_TODAY,
             confidence: "V",
             verified_by: "rule",
@@ -642,7 +701,7 @@ function buildSeedData(): SeedData {
       },
       last_engagement_at: SEED_STARTED,
       monday_item_id: null,
-      sources: [validSrc("https://www.plk-sa.pl/en/leadership/marta-wojcik", "PKP PLK Leadership — Marta Wójcik")],
+      sources: [{ url: URL.plkPlk, title: "PKP PLK — official site", live: true }],
       created_at: SEED_STARTED,
       updated_at: SEED_NOW,
     },
@@ -652,19 +711,19 @@ function buildSeedData(): SeedData {
       org_id: "org_axtone",
       role: "Regional Sales Manager, Central Europe",
       role_history: [],
-      linkedin_url: null,
+      linkedin_url: linkedInSearch("Piotr Kowalski", "Axtone"),
       interests: [],
       relationship_owner: null,
       relationship_status: "none",
       import_meta: {
         method: "seed",
-        source_ref: "v1 baseline seed (placeholder for recon tracking)",
+        source_ref: "v1 baseline seed (placeholder for recon tracking; no public profile yet)",
         imported_by: "cassin",
         imported_at: SEED_STARTED,
       },
       last_engagement_at: null,
       monday_item_id: null,
-      sources: [validSrc("https://www.axtone.eu/team", "Axtone — Team")],
+      sources: [{ url: URL.axtone, title: "Axtone — official site", live: true }],
       created_at: SEED_STARTED,
       updated_at: SEED_NOW,
     },
@@ -674,14 +733,14 @@ function buildSeedData(): SeedData {
       org_id: "org_systra",
       role: "Senior Consultant, Rail Freight Europe",
       role_history: [],
-      linkedin_url: "https://www.linkedin.com/in/julien-martin-systra",
+      linkedin_url: linkedInSearch("Julien Martin", "SYSTRA"),
       interests: [
         {
           kind: "project",
           summary: "SYSTRA is the spec-writing consultant on the PKP PLK Hump Yard Modernization programme",
           fact: {
             value: "SYSTRA is the spec-writing consultant on PKP PLK Hump Yard Modernization",
-            source_url: "https://www.systra.com/en/projects/poland-hump-yard",
+            source_url: URL.systra,
             retrieved_at: SEED_TODAY,
             confidence: "V",
             verified_by: "rule",
@@ -698,7 +757,7 @@ function buildSeedData(): SeedData {
       },
       last_engagement_at: SEED_STARTED,
       monday_item_id: null,
-      sources: [validSrc("https://www.systra.com/en/projects/poland-hump-yard", "SYSTRA — Poland Hump Yard Project")],
+      sources: [{ url: URL.systra, title: "SYSTRA — official site", live: true }],
       created_at: SEED_STARTED,
       updated_at: SEED_NOW,
     },
@@ -724,8 +783,8 @@ function buildSeedData(): SeedData {
     ],
     trap_to_avoid: "PKP S.A. is the holding company — PLK owns the yards. Ask who opens PLK, not PKP S.A.",
     sources: [
-      validSrc("https://www.plk-sa.pl/en/about-us", "PKP PLK — About Us"),
-      validSrc("https://www.plk-sa.pl/en/capex-plan", "PKP PLK — Capex Plan 2024-2030"),
+      { url: URL.plkPlk, title: "PKP PLK — official site", live: true },
+      { url: URL.wikiPkpPlk, title: "PKP PLK — Wikipedia", live: true },
     ],
     kind: "relationship",
     recon_what_to_observe: undefined,
@@ -747,15 +806,15 @@ function buildSeedData(): SeedData {
     suggested_questions: [],
     trap_to_avoid: "Do NOT contact Axtone staff directly. Use trade show observation and public statements only.",
     sources: [
-      validSrc("https://www.axtone.eu/about", "Axtone — About"),
-      validSrc("https://www.trako.com/en/program-2025/axtone-keynote", "TRAKO 2025 — Axtone Keynote"),
+      { url: URL.axtone, title: "Axtone — official site", live: true },
+      { url: URL.wikiAxtone, title: "Axtone — Wikipedia", live: true },
     ],
     kind: "recon",
     recon_what_to_observe: [
       "Axtone's pricing in recent Polish tenders (look for published awards)",
       "Their retrofit lead time vs ours (DECEL typically 6-9 months vs Axtone 12-15)",
       "Their safety record vs ours (DECEL has zero incidents in Hallsberg 2018-2024)",
-      "Their presence at TRAKO 2025 and InnoTrans 2026 (booth size, staff count)",
+      "Their presence at InnoTrans 2026 (booth size, staff count)",
     ],
     doctrine_version: 1,
     doctrine_updated_at: SEED_NOW,
@@ -777,7 +836,10 @@ function buildSeedData(): SeedData {
     ],
     trap_to_avoid:
       "DB Cargo (the freight operator) is NOT DB Netz (the infrastructure manager). They have separate procurement. Talk to the right one.",
-    sources: [validSrc("https://www.db-netz.de/en/about", "DB Netz — About")],
+    sources: [
+      { url: URL.dbMain, title: "Deutsche Bahn — official site", live: true },
+      { url: URL.wikiDbNetz, title: "DB Netz — Wikipedia", live: true },
+    ],
     kind: "watchlist_plus",
     recon_what_to_observe: [
       "DB Netz booth staffing at InnoTrans 2026 (Hall 26 or similar)",
@@ -804,7 +866,10 @@ function buildSeedData(): SeedData {
     ],
     trap_to_avoid:
       "KTZ is the OPERATOR, not the infrastructure manager. The Trans-Caspian corridor is a different org (KTZ Express / KTZE). Don't conflate the two.",
-    sources: [validSrc("https://railways.kz/en/about", "KTZ — About")],
+    sources: [
+      { url: URL.ktz, title: "Kazakhstan Temir Zholy — official site", live: true },
+      { url: URL.wikiKtz, title: "KTZ — Wikipedia", live: true },
+    ],
     kind: "watchlist_plus",
     recon_what_to_observe: [
       "KTZ presence at Middle Corridor summit (Baku, November 2026)",
@@ -831,7 +896,10 @@ function buildSeedData(): SeedData {
     ],
     trap_to_avoid:
       "Don't open a direct UTY conversation in v1 — they're a 12-18 month lag follow-on to KTZ. The v1 strategy is to land the spec in KTZ first.",
-    sources: [validSrc("https://ut.uz/en/about", "UTY — About")],
+    sources: [
+      { url: URL.uty, title: "Uzbekistan Railways — official site", live: true },
+      { url: URL.wikiUty, title: "UTY — Wikipedia", live: true },
+    ],
     kind: "watchlist_plus",
     recon_what_to_observe: [
       "UTY's 2027 capex plan (Q1 2027 publication)",
@@ -848,13 +916,13 @@ function buildSeedData(): SeedData {
     id: `q_${randomUUID()}`,
     kind: "yard",
     proposed: {
-      name: "Code for Design on Hump and",
+      name: "PKP PLK Hump Yard Code for Design",
       market_id: "pl",
       operator_org_id: "org_pkp_plk",
       status: "active",
     },
-    raw_snippet: "Code for Design on Hump and Marshalling Yards (PKP PLK, 2019) — section 4.2",
-    source_url: "https://www.plk-sa.pl/en/standards/code-for-design",
+    raw_snippet: "Code for Design on Hump and Marshalling Yards (PKP PLK, 2019) — section 4.2 references the retarder retrofit spec.",
+    source_url: URL.plkPlk,
     retrieved_at: "2026-08-25T10:00:00Z",
     market_id: "pl",
     ts: "2026-08-25T10:00:00Z",
@@ -868,7 +936,7 @@ function buildSeedData(): SeedData {
       market_id: "pl",
     },
     raw_snippet: "Tender notice for Idzikowice hump yard modernization (PKP PLK, Q4 2026). Estimated value: PLN 320M. Bid opens Aug 2026.",
-    source_url: "https://www.plk-sa.pl/en/procurement/idzikowice",
+    source_url: URL.plkPlk,
     retrieved_at: "2026-08-25T10:00:00Z",
     market_id: "pl",
     ts: "2026-08-25T10:00:00Z",

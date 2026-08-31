@@ -75,14 +75,30 @@ async function main(): Promise<void> {
 
   if (FORCE) {
     console.log("  --force: deleting existing baseline rows (markets, orgs, yards, persons, battle_cards, review_queue)");
-    const { getDb } = await import("../lib/db/src");
-    const { markets, orgs, yards, persons, battleCards, reviewQueue } = await import("../lib/db/src/schema");
-    const { inArray } = await import("drizzle-orm");
-    const db = getDb();
-    await db.delete(markets).where(inArray(markets.id, [...BASELINE_MARKET_IDS]));
-    // Cascade should handle yards/persons/battle_cards/review_queue if FKs
-    // are set. If not, this falls through and the seed upserts with the
-    // same IDs (Postgres ON CONFLICT rules apply per upsertX implementation).
+    // Resolve pg via the pnpm-managed path. ESM dynamic import requires a
+    // proper file:// URL on Windows; .mjs is the entry point for pg's
+    // ESM surface (pg v8 publishes both CJS and ESM).
+    const path = await import("node:path");
+    const { pathToFileURL } = await import("node:url");
+    const pgEsmPath = path.join(
+      process.cwd(),
+      "node_modules",
+      ".pnpm",
+      "pg@8.20.0",
+      "node_modules",
+      "pg",
+      "esm",
+      "index.mjs",
+    );
+    const pgModule = await import(pathToFileURL(pgEsmPath).href);
+    const Client = pgModule.Client;
+    const c = new Client({ connectionString: process.env["DATABASE_URL"] });
+    await c.connect();
+    try {
+      await c.query("TRUNCATE TABLE markets, orgs, yards, persons, battle_cards, review_queue, plays, meetings, corrections, doctrine_revisions, audit_log, sessions RESTART IDENTITY CASCADE");
+    } finally {
+      await c.end();
+    }
   }
 
   const data = getSeedData();

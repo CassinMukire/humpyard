@@ -319,25 +319,42 @@ function PersonCard({ person, onChanged }: { person: Person; onChanged: () => vo
         </div>
       )}
 
-      {person.linkedin_url && (
-        <div className="flex flex-wrap gap-2 pt-1">
-          <a
-            href={person.linkedin_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs font-mono px-2 py-1 border border-blue-600/50 text-blue-400 hover:bg-blue-600/10 transition-colors"
-          >
-            <Linkedin className="w-3 h-3" /> Open LinkedIn
-          </a>
-          <button
-            onClick={handleCopy}
-            className="inline-flex items-center gap-1.5 text-xs font-mono px-2 py-1 border border-border text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
-          >
-            {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-            {copied ? "Copied" : "Copy URL"}
-          </button>
-        </div>
-      )}
+      {(() => {
+        // Always show a LinkedIn affordance — either the enriched profile
+        // URL or a search URL built from the person's name. The search URL
+        // is a real, working public endpoint so the operator never sees a
+        // 404 on a fake profile slug. Once Proxycurl enrichment runs, the
+        // URL is replaced with the verified profile.
+        const searchUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(
+          person.name,
+        )}`;
+        const href = person.linkedin_url ?? searchUrl;
+        const isEnriched = !!person.linkedin_url;
+        return (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-mono px-2 py-1 border border-blue-600/50 text-blue-400 hover:bg-blue-600/10 transition-colors"
+            >
+              <Linkedin className="w-3 h-3" /> {isEnriched ? "Open LinkedIn" : "Search LinkedIn"}
+            </a>
+            {!isEnriched && (
+              <span className="inline-flex items-center text-[10px] text-muted-foreground/70 font-mono">
+                (not yet enriched — click to find profile)
+              </span>
+            )}
+            <button
+              onClick={handleCopy}
+              className="inline-flex items-center gap-1.5 text-xs font-mono px-2 py-1 border border-border text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+            >
+              {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+              {copied ? "Copied" : "Copy URL"}
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Live API actions — exercise Proxycurl + monday end-to-end */}
       <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
