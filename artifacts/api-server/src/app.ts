@@ -91,26 +91,6 @@ app.use(
     },
   }),
 );
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      // No Origin (curl, server-to-server) is always allowed.
-      if (!origin) return cb(null, true);
-      if (allowedOrigins.length === 0) {
-        // Production default = same-origin only. CORS only blocks
-        // cross-origin browser requests; same-origin requests don't go
-        // through CORS at all.
-        return cb(null, true);
-      }
-      if (allowedOrigins.includes(origin)) return cb(null, true);
-      return cb(new Error(`CORS: origin ${origin} not in allow-list`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Internal-Token"],
-    maxAge: 86400,
-  }),
-);
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
@@ -129,6 +109,11 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 // The frontend uses wouter for client-side routing. We need a fallback so
 // deep links (e.g. /review-queue) serve index.html and let the SPA router
 // take over — but only for non-API paths.
+//
+// IMPORTANT: static assets are mounted BEFORE the CORS middleware so the
+// browser can fetch /assets/*.js and /assets/*.css without CORS preflight.
+// Same-origin requests don't need CORS at all, and static assets are
+// always same-origin in our deploy topology.
 
 const FRONTEND_DIST_CANDIDATES = [
   process.env["FRONTEND_DIST"],
@@ -159,6 +144,43 @@ if (FRONTEND_DIST) {
     "No built frontend found at expected paths. The API will still work; the UI needs a separate dev server.",
   );
 }
+
+// CORS — mounted AFTER the static middleware so the same-origin asset
+// fetches (the browser's <script src="/assets/..."> requests) never go
+// through CORS at all. CORS only matters for cross-origin XHR/fetch on
+// /api/*. The origin callback is permissive on loopback (localhost +
+// 127.0.0.1) regardless of NODE_ENV — production deployments reach this
+// server via Caddy on a public hostname, not via loopback.
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+function isLoopbackOrigin(origin: string): boolean {
+  try {
+    return LOOPBACK_HOSTS.has(new URL(origin).hostname);
+  } catch {
+    return false;
+  }
+}
+
+app.use(
+  cors({
+    origin: (origin, cb) => {
+      // No Origin (curl, server-to-server) is always allowed.
+      if (!origin) return cb(null, true);
+      // Loopback is always allowed — dev convenience, and a Caddy-fronted
+      // prod deploy never has a loopback Origin.
+      if (isLoopbackOrigin(origin)) return cb(null, true);
+      if (allowedOrigins.length === 0) {
+        // Production with no allow-list: same-origin only.
+        return cb(null, true);
+      }
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(new Error(`CORS: origin ${origin} not in allow-list`));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Internal-Token"],
+    maxAge: 86400,
+  }),
+);
 
 // Public routes (existing scanner endpoints — search, search/countries,
 // search/outreach, health). These are NOT gated in v1 so the existing
