@@ -55,6 +55,13 @@ services:
       NODE_ENV: production
       PORT: "5000"
       TZ: Europe/Stockholm
+    # Docker secret for AUTH_PASS_HASH. The scrypt hash is `scrypt$N$r$p$salt$hash`
+    # — six `$`-separated parts. Docker compose's `env_file` does TWO substitution
+    # passes (`$$` → `$`, then `$VAR` → value), which eats `$salt` and `$hash` as
+    # undefined variable references. Secrets bypass that — the file is mounted
+    # byte-for-byte at /run/secrets/<name> and read by lib/auth/secrets.ts.
+    secrets:
+      - auth_pass_hash
     ports:
       # The api-server listens on :5000 inside the container; Caddy on the
       # host terminates TLS and proxies to this port. HOST_PORT=5000 by
@@ -75,3 +82,14 @@ volumes:
     name: decel-db-data
   decel-snapshots:
     name: decel-snapshots
+
+# Docker secrets — file-mounted, byte-for-byte. Bypasses env_file's `$VAR`
+# expansion so values like the scrypt password hash survive intact.
+#
+# Provision the file before `docker compose up`:
+#   mkdir -p secrets
+#   echo -n 'scrypt$16384$8$1$salt$hash' > secrets/auth_pass_hash
+#   chmod 600 secrets/auth_pass_hash
+secrets:
+  auth_pass_hash:
+    file: ./secrets/auth_pass_hash

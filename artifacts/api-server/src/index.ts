@@ -1,3 +1,9 @@
+// Load Docker secrets BEFORE importing app so that auth middleware sees
+// the real AUTH_PASS_HASH on first request. See lib/auth/secrets.ts for why
+// this is necessary (env_file's `$VAR` expansion corrupts the scrypt hash).
+import { loadAuthSecret } from "./lib/auth/secrets";
+loadAuthSecret();
+
 import app from "./app";
 import { logger } from "./lib/logger";
 import { closeDb } from "@workspace/db";
