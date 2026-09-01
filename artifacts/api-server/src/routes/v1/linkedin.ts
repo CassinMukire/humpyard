@@ -12,11 +12,19 @@
 //
 // IMPORTANT: this route does NOT generate outreach messages. It surfaces
 // what the contact is interested in. The operator writes the message.
+//
+// Provider: NinjaPear (formerly Proxycurl — same vendor rebranded). The
+// Person Profile endpoint takes first_name + last_name + employer_website
+// (no LinkedIn URL — NinjaPear doesn't scrape LinkedIn per their ToS).
+// We use the person's name + org from the person record. If the body
+// includes a profile_url, we use that ONLY to update linkedin_url; we
+// never pass it to the provider.
 // =============================================================================
 
 import { Router } from "express";
 import {
   getPerson,
+  getOrg,
   upsertPerson,
 } from "../../lib/store-factory";
 import { getLinkedInProvider, buildSourceUrlForProvider } from "../../lib/linkedin-provider";
@@ -26,8 +34,8 @@ import { z } from "zod";
 const router = Router();
 
 const EnrichBody = z.object({
-  // Optional — if omitted, we use the person's current linkedin_url.
-  // Useful for first-time enrichment when no URL is on file yet.
+  // Optional — if present, saved to person.linkedin_url. Not used for
+  // the provider lookup (NinjaPear takes name + org, not a URL).
   profile_url: z.string().url().optional(),
 });
 
@@ -47,21 +55,34 @@ router.post(
         res.status(402).json({
           error: "LinkedIn provider not configured",
           provider: provider.name(),
-          fix: "Set PROXYCURL_API_KEY (or your provider's key) in the env to enable enrichment.",
+          fix: "Set PROXYCURL_API_KEY in the env to enable enrichment.",
         });
         return;
       }
       const body = (req as unknown as { validatedBody: z.infer<typeof EnrichBody> })
         .validatedBody;
-      const profileUrl = body.profile_url ?? person.linkedin_url;
-      if (!profileUrl) {
-        res.status(400).json({
-          error: "No profile URL on file. Pass { profile_url } in the body to enrich for the first time.",
+
+      // Resolve the org name for the provider. The Person record only has
+      // org_id; we look up the org to get the display name. If the org is
+      // not in the v1 lookup table, the provider returns null and we
+      // surface a 422 so the operator knows to add it.
+      const org = person.org_id ? await getOrg(person.org_id) : null;
+      const orgName = org?.name ?? null;
+
+      const result = await provider.enrichByName(person.name, orgName);
+      if (!result) {
+        res.status(422).json({
+          error: "Enrichment could not be performed",
+          reason:
+            orgName
+              ? `Provider has no record for "${person.name}" at "${orgName}". Check the org is in the v1 lookup table, or top up the provider's credits.`
+              : `Person "${person.name}" has no org on file. Link them to an org first.`,
+          provider: provider.name(),
+          person_id: person.id,
         });
         return;
       }
 
-      const result = await provider.enrichByProfile(profileUrl);
       const now = new Date().toISOString();
 
       // Wrap each provider interest in a PersonInterest (SourcedFact) and
@@ -83,9 +104,17 @@ router.post(
 
       const dedupedInterests = dedupeInterests([...person.interests, ...newInterests]);
 
+      // Update linkedin_url ONLY if:
+      //   (a) the body explicitly supplied a profile_url, OR
+      //   (b) the person already has one and the provider didn't suggest a change
+      // We do NOT auto-overwrite linkedin_url with the provider's own
+      // person_profile_url — that's a NinjaPear URL, not a LinkedIn URL.
+      const newLinkedinUrl =
+        body.profile_url ?? person.linkedin_url ?? null;
+
       const updated = {
         ...person,
-        linkedin_url: result.profile.profileUrl,
+        linkedin_url: newLinkedinUrl,
         interests: dedupedInterests,
         import_meta: {
           method: "linkedin-enrichment" as const,
