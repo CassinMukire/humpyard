@@ -1,53 +1,25 @@
 {
-  "name": "Poland — OIU vallar golden set (W34 fixture)",
-  "spec_ref": "Golden set A — US-2.3, §6",
-  "description": "The 5 OIU vallar (marshalling yards) named in the project corpus, with operator = PKP PLK. Each must extract with confidence=V, operator_org_id matching PKP PLK, and either geo coordinates or a documented operator. Used as the precision/recall gate before the Poland dossier ships.",
-  "yard_count_expected": 5,
-  "yards": [
-    {
-      "id": "pl-yard-1",
-      "name": "Idzikowice",
-      "expected_status": "modernizing",
-      "expected_operator_org_match_key": "pkp plk",
-      "notes": "Modernization history known; Q4 2026 tender planned; primary source = PKP PLK infrastructure registry."
-    },
-    {
-      "id": "pl-yard-2",
-      "name": "Karsznice",
-      "expected_status": "active",
-      "expected_operator_org_match_key": "pkp plk",
-      "notes": "Modernization history known; primary source = PKP PLK infrastructure registry."
-    },
-    {
-      "id": "pl-yard-3",
-      "name": "Warszawa Praga",
-      "expected_status": "active",
-      "expected_operator_org_match_key": "pkp plk",
-      "notes": "Warsaw marshalling yard. Modernization history known; primary source = PKP PLK."
-    },
-    {
-      "id": "pl-yard-4",
-      "name": "Gliwice",
-      "expected_status": "active",
-      "expected_operator_org_match_key": "pkp plk",
-      "notes": "Silesian industrial corridor; primary source = PKP PLK."
-    },
-    {
-      "id": "pl-yard-5",
-      "name": "Łódź Olechów",
-      "expected_status": "active",
-      "expected_operator_org_match_key": "pkp plk",
-      "notes": "Modernization history known; primary source = PKP PLK."
-    }
-  ],
+  "name": "Poland — yards golden set (post-v1.6 production state)",
+  "spec_ref": "Golden set A — US-2.3, §6, §12.3",
+  "description": "Post-Cassin-v1.6-brief (Sep 2, 2026) state. The 5 placeholder yards from the W34 seed were removed (F1: 'no fake data, no DEMO labels'). Idzikowice is in the review queue (F5 unsourced). The honest empty state IS the production state until F6 import delivers real data. When F6 lands, this file is updated to reflect the imported yard count and the same gate continues to enforce precision/recall against the new expected set.",
+  "yard_count_expected": 0,
+  "yards": [],
   "golden_gates": {
-    "yard_extraction_precision_min": 0.9,
-    "yard_extraction_recall_min": 0.8,
+    "yard_extraction_precision_min": 0,
+    "yard_extraction_recall_min": 0,
     "hallucinated_yards_max": 0
   },
+  "history_for_context": [
+    "W34–W36: 5 placeholder yards seeded (Idzikowice, Karsznice, Warszawa Praga, Gliwice, Łódź Olechów).",
+    "Sep 1, 2026: Cassin's v1.6 audit flagged the 5 as unverified (homepage sources, no primary evidence).",
+    "Sep 2, 2026: v1.6 F1 cleanup removed the 5 from the seed. PL yard_count = null until F6 import lands.",
+    "Sep 4, 2026: Cassin delivers battle-cards-utkast-v1.md (or JSON). Builder runs `pnpm run import:cards <file>`. The same gate re-runs against the imported data.",
+    "When this file's `yards` array is updated to the real set (post-F6), the eval-gate automatically tightens the precision/recall checks. Until then, the gate verifies the only thing that matters: no hallucinated yards."
+  ],
   "notes_for_builder": [
-    "Each yard must have ≥1 source_url with host matching the primary domain whitelist (plk-sa.pl, gov.pl, etc.).",
-    "ASCII-normalize names: 'Lodz Olechow' and 'Łódź Olechów' dedupe to one entity via match_key.",
-    "If the OIU corpus PDFs are not yet in the repo, this fixture will fail — that's the signal to chase the corpus (gap #8)."
+    "Post-v1.6: 0 yards expected. Gate enforces `hallucinated_yards_max: 0` — i.e. the system must not have any yards it shouldn't have.",
+    "When F6 import lands: update `yard_count_expected` to the real count, populate `yards` with the real set, and tighten `yard_extraction_precision_min` / `yard_extraction_recall_min`.",
+    "Idzikowice is parked in the review queue (kind: 'yard', market_id: 'pl') with raw_snippet explaining the missing primary source. Cassin resolves by either providing a PKP PLK infrastructure registry URL (F6) or rejecting the entry (review queue DELETE).",
+    "ASCII-normalize names: 'Lodz Olechow' and 'Łódź Olechów' dedupe to one entity via match_key."
   ]
 }

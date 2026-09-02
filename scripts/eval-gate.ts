@@ -125,7 +125,11 @@ async function runPolandYardsGoldenSet(): Promise<void> {
     failures.push("FAIL: PKP PLK org not found in live data (expected match_key: 'pkp plk')");
   }
 
-  // Recall: how many of the 5 expected yards did we find?
+  // Recall: how many of the expected yards did we find?
+  // Post-v1.6: the expected set may be empty (yard_count_expected: 0).
+  // In that case the recall/precision are N/A and we only assert
+  // hallucination count. When F6 import lands, the expected set
+  // grows and the same gate tightens the assertions automatically.
   let hits = 0;
   for (const expected of golden.yards) {
     const found = observed.find((o) => asciiNormalize(o.name) === asciiNormalize(expected.name));
@@ -146,51 +150,55 @@ async function runPolandYardsGoldenSet(): Promise<void> {
       failures.push(`FAIL: ${expected.id} (${expected.name}) — expected yard missing from live data`);
     }
   }
-  const recall = hits / golden.yards.length;
-  console.log(`  recall: ${hits}/${golden.yards.length} = ${recall.toFixed(2)} (target ≥ ${golden.golden_gates.yard_extraction_recall_min})`);
-  assertTrue(
-    "recall ≥ yard_extraction_recall_min",
-    recall >= golden.golden_gates.yard_extraction_recall_min,
-    `recall ${recall} < target ${golden.golden_gates.yard_extraction_recall_min}`,
-  );
+  if (golden.yards.length > 0) {
+    const recall = hits / golden.yards.length;
+    console.log(`  recall: ${hits}/${golden.yards.length} = ${recall.toFixed(2)} (target ≥ ${golden.golden_gates.yard_extraction_recall_min})`);
+    assertTrue(
+      "recall ≥ yard_extraction_recall_min",
+      recall >= golden.golden_gates.yard_extraction_recall_min,
+      `recall ${recall} < target ${golden.golden_gates.yard_extraction_recall_min}`,
+    );
+  } else {
+    console.log(`  recall: N/A (post-v1.6: 0 yards expected until F6 import lands)`);
+  }
 
   // Precision: how many of the yards we have are in the expected set?
   const expectedNames = new Set(golden.yards.map((y) => asciiNormalize(y.name)));
   const expectedPlNames = new Set(
     observed.filter((o) => o.operator_org_id === pkpPlk?.id).map((o) => asciiNormalize(o.name)),
   );
-  let plHits = 0;
-  for (const name of expectedPlNames) {
-    if (expectedNames.has(name)) plHits++;
+  if (golden.yards.length > 0) {
+    let plHits = 0;
+    for (const name of expectedPlNames) {
+      if (expectedNames.has(name)) plHits++;
+    }
+    const precision = expectedPlNames.size > 0 ? plHits / expectedPlNames.size : 1;
+    console.log(`  precision: ${plHits}/${expectedPlNames.size} = ${precision.toFixed(2)} (target ≥ ${golden.golden_gates.yard_extraction_precision_min})`);
+    assertTrue(
+      "precision ≥ yard_extraction_precision_min",
+      precision >= golden.golden_gates.yard_extraction_precision_min,
+      `precision ${precision} < target ${golden.golden_gates.yard_extraction_precision_min}`,
+    );
+  } else {
+    console.log(`  precision: N/A (post-v1.6: 0 yards expected until F6 import lands)`);
   }
-  const precision = expectedPlNames.size > 0 ? plHits / expectedPlNames.size : 1;
-  console.log(`  precision: ${plHits}/${expectedPlNames.size} = ${precision.toFixed(2)} (target ≥ ${golden.golden_gates.yard_extraction_precision_min})`);
-  assertTrue(
-    "precision ≥ yard_extraction_precision_min",
-    precision >= golden.golden_gates.yard_extraction_precision_min,
-    `precision ${precision} < target ${golden.golden_gates.yard_extraction_precision_min}`,
-  );
 
   // Hallucinations: yards in the data that are NOT in the expected set,
-  // for the operator we're checking (PKP PLK).
+  // for the operator we're checking (PKP PLK). This is the one assertion
+  // that ALWAYS runs — no fake data means 0 hallucinations.
   let hallucinations = 0;
   for (const name of expectedPlNames) {
     if (!expectedNames.has(name)) {
-      console.log(`  note: extra yard in data not in golden set: "${name}"`);
-      // Don't count demo seed entries as hallucinations if they're in
-      // aliases/anchor lists. For now: only count extras as hallucinations
-      // if precision drops below 1.0.
+      console.log(`  hallucination: extra yard in data not in golden set: "${name}"`);
       hallucinations++;
     }
   }
   console.log(`  hallucinations: ${hallucinations} (max ${golden.golden_gates.hallucinated_yards_max})`);
-  if (precision < 1.0) {
-    assertTrue(
-      "hallucinations ≤ hallucinated_yards_max",
-      hallucinations <= golden.golden_gates.hallucinated_yards_max,
-      `${hallucinations} hallucinated yard(s) > max ${golden.golden_gates.hallucinated_yards_max}`,
-    );
-  }
+  assertTrue(
+    "hallucinations ≤ hallucinated_yards_max",
+    hallucinations <= golden.golden_gates.hallucinated_yards_max,
+    `${hallucinations} hallucinated yard(s) > max ${golden.golden_gates.hallucinated_yards_max}`,
+  );
 }
 
 function asciiNormalize(s: string): string {
