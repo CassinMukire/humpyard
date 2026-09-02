@@ -21,6 +21,7 @@ import type {
   Org,
   Person,
   Play,
+  Signal,
   MeetingLog,
   BattleCard,
   DoctrineRevision,
@@ -470,6 +471,109 @@ export async function listPlaysByMarket(marketId: string): Promise<Play[]> {
     .from(schema.plays)
     .where(eq(schema.plays.market_id, marketId));
   return rows.map(rowToPlay);
+}
+
+// -----------------------------------------------------------------------------
+// Signals (Phase 7 — radar)
+//
+// Idempotent on (source, external_id) — re-runs of the radar-fetch script
+// upsert by id (we generate a stable id from `${source}:${external_id}` so
+// the same feed item never creates a duplicate row). The unique index on
+// (source, external_id) in the schema is the safety net.
+// -----------------------------------------------------------------------------
+
+function rowToSignal(r: schema.SignalRow): Signal {
+  return {
+    id: r.id,
+    source: r.source as Signal["source"],
+    external_id: r.external_id,
+    url: r.url,
+    title: r.title,
+    summary: r.summary as Signal["summary"],
+    market_id: r.market_id ?? null,
+    posted_at: r.posted_at?.toISOString() ?? null,
+    fetched_at: r.fetched_at.toISOString(),
+    status: r.status as Signal["status"],
+    promoted_to_play_id: r.promoted_to_play_id ?? null,
+    dismissed_reason: r.dismissed_reason ?? null,
+    notes: r.notes ?? null,
+  };
+}
+
+export async function upsertSignal(s: Signal): Promise<Signal> {
+  const fetchedAt = s.fetched_at ? new Date(s.fetched_at) : new Date();
+  const postedAt = s.posted_at ? new Date(s.posted_at) : null;
+  // Stable id from (source, external_id) so the same feed item upserts cleanly
+  const id = s.id && !s.id.startsWith("sig_") ? s.id : s.id || `sig_${s.source}_${s.external_id}`;
+  await db
+    .insert(schema.signals)
+    .values({
+      id,
+      source: s.source,
+      external_id: s.external_id,
+      url: s.url,
+      title: s.title,
+      summary: s.summary,
+      market_id: s.market_id,
+      posted_at: postedAt,
+      fetched_at: fetchedAt,
+      status: s.status,
+      promoted_to_play_id: s.promoted_to_play_id,
+      dismissed_reason: s.dismissed_reason,
+      notes: s.notes,
+    })
+    .onConflictDoUpdate({
+      target: [schema.signals.source, schema.signals.external_id],
+      set: {
+        url: s.url,
+        title: s.title,
+        summary: s.summary,
+        posted_at: postedAt,
+        status: s.status,
+        promoted_to_play_id: s.promoted_to_play_id,
+        dismissed_reason: s.dismissed_reason,
+        notes: s.notes,
+      },
+    });
+  return { ...s, id };
+}
+
+export async function getSignal(signalId: string): Promise<Signal | undefined> {
+  const rows = await db.select().from(schema.signals).where(eq(schema.signals.id, signalId)).limit(1);
+  return rows[0] ? rowToSignal(rows[0]) : undefined;
+}
+
+export async function listSignals(opts?: {
+  status?: string;
+  marketId?: string;
+  limit?: number;
+}): Promise<Signal[]> {
+  const conds = [];
+  if (opts?.status) conds.push(eq(schema.signals.status, opts.status));
+  if (opts?.marketId) conds.push(eq(schema.signals.market_id, opts.marketId));
+  const base = db
+    .select()
+    .from(schema.signals)
+    .where(conds.length > 0 ? and(...conds) : undefined)
+    .orderBy(desc(schema.signals.fetched_at));
+  const rows = opts?.limit ? await base.limit(opts.limit) : await base;
+  return rows.map(rowToSignal);
+}
+
+export async function promoteSignal(signalId: string, playId: string): Promise<Signal | undefined> {
+  await db
+    .update(schema.signals)
+    .set({ status: "promoted", promoted_to_play_id: playId })
+    .where(eq(schema.signals.id, signalId));
+  return getSignal(signalId);
+}
+
+export async function dismissSignal(signalId: string, reason: string): Promise<Signal | undefined> {
+  await db
+    .update(schema.signals)
+    .set({ status: "dismissed", dismissed_reason: reason })
+    .where(eq(schema.signals.id, signalId));
+  return getSignal(signalId);
 }
 
 // -----------------------------------------------------------------------------

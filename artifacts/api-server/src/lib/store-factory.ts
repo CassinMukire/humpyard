@@ -108,6 +108,12 @@ export const touchPersonEngagement = active.touchPersonEngagement;
 export const createPlay = active.createPlay;
 export const listPlaysByMarket = active.listPlaysByMarket;
 
+export const upsertSignal = active.upsertSignal;
+export const getSignal = active.getSignal;
+export const listSignals = active.listSignals;
+export const promoteSignal = active.promoteSignal;
+export const dismissSignal = active.dismissSignal;
+
 export const logCorrection = active.logCorrection;
 export const listCorrections = active.listCorrections;
 export const isRejectedContent = active.isRejectedContent;

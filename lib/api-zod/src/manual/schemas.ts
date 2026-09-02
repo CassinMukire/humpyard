@@ -352,6 +352,65 @@ export const CorrectionSchema = z.object({
 export type Correction = z.infer<typeof CorrectionSchema>;
 
 // -----------------------------------------------------------------------------
+// Signal — radar item (Phase 7, post-fair)
+//
+// Per Cassin's v1.6 brief §4: the radar that feeds the Morning Queue. Each
+// signal is a single item from a live feed (TED EU, CUPT/FEnIKS, ERADIS,
+// UTK, zakazky.spravazeleznic.cz, Väylävirasto hankintaohjelmat) with a
+// primary source URL and a structured summary. Signals get promoted to
+// Plays (with a date + owner + action) or dismissed.
+//
+// Status flow:
+//   new      — just fetched, not yet reviewed
+//   promoted — a Play was created from this signal
+//   dismissed — operator marked it as not actionable
+//   acted    — the Play was completed (status flips here on Play=done)
+//
+// Confidence on Signal-level facts uses the SourcedFact envelope (same as
+// everywhere else). A signal with only a feed URL + a one-line extract is
+// always [I] until a human reviews it. After review, it can be promoted to
+// [O] if a second independent source is found, or to [V] only if the feed
+// page itself is the primary tender/award document.
+// -----------------------------------------------------------------------------
+
+export const SignalSourceSchema = z.enum([
+  "ted_eu",          // EU tenders (multilingual)
+  "cupt_feniks",     // Polish FEnIKS / CUPT award announcements
+  "eradis",          // ERA subsystem verifications (INF/ENE/Shunting)
+  "utk",             // Polish UTK stacje rozrządowe registry
+  "zakazky_sz",      // Czech SŽ zakázky
+  "vaylavirasto",    // Finnish procurement programmes
+  "exa",             // EXA web search (post-fair primary)
+  "manual",          // operator-entered (Cassin paste)
+]);
+export type SignalSource = z.infer<typeof SignalSourceSchema>;
+
+export const SignalStatusSchema = z.enum([
+  "new",
+  "promoted",
+  "dismissed",
+  "acted",
+]);
+export type SignalStatus = z.infer<typeof SignalStatusSchema>;
+
+export const SignalSchema = z.object({
+  id: z.string(),
+  source: SignalSourceSchema,
+  external_id: z.string(), // feed-specific id (TED notice number, etc.)
+  url: z.string().url(), // canonical primary URL
+  title: z.string(), // one-line headline
+  summary: SourcedFactSchema, // the body, as a SourcedFact (confidence per v1.6 §11.3)
+  market_id: z.string().nullable(), // nullable: signal may be undated
+  posted_at: z.string().nullable(), // when the feed item was published (nullable if unknown)
+  fetched_at: z.string(), // when we ingested it
+  status: SignalStatusSchema,
+  promoted_to_play_id: z.string().nullable(),
+  dismissed_reason: z.string().nullable(),
+  notes: z.string().nullable(),
+});
+export type Signal = z.infer<typeof SignalSchema>;
+
+// -----------------------------------------------------------------------------
 // MeetingLog — post-meeting capture (US-4.3, conditional scope in v1)
 // -----------------------------------------------------------------------------
 

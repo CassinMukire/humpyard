@@ -15,6 +15,13 @@
       "when": 1788355900000,
       "tag": "0001_add_d2_f4_f5_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789974000000,
+      "tag": "0002_add_signals",
+      "breakpoints": true
     }
   ]
 }

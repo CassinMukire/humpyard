@@ -19,6 +19,7 @@ import linkedinRouter from "./linkedin";
 import countryScanRouter from "./country-scan";
 import correctionsRouter from "./corrections";
 import peopleRouter from "./people";
+import signalsRouter from "./signals";
 import { isDemoMode } from "../../lib/store-factory";
 import { logger } from "../../lib/logger";
 
@@ -69,5 +70,6 @@ router.use(linkedinRouter);
 router.use(countryScanRouter);
 router.use(correctionsRouter);
 router.use(peopleRouter);
+router.use(signalsRouter);
 
 export default router;

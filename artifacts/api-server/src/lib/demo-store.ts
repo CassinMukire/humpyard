@@ -24,6 +24,7 @@ import type {
   Org,
   Person,
   Play,
+  Signal,
   MeetingLog,
   BattleCard,
   DoctrineRevision,
@@ -37,6 +38,7 @@ const yards = new Map<string, Yard>();
 const orgs = new Map<string, Org>();
 const persons = new Map<string, Person>();
 const plays = new Map<string, Play>();
+const signals = new Map<string, Signal>();
 const reviewQueue = new Map<string, ReviewQueueItem>();
 const corrections: Correction[] = [];
 const meetings: MeetingLog[] = [];
@@ -319,6 +321,46 @@ export async function createPlay(p: Omit<Play, "id" | "created_at">): Promise<Pl
 export async function listPlaysByMarket(marketId: string): Promise<Play[]> {
   ensureSeeded();
   return Array.from(plays.values()).filter((p) => p.market_id === marketId);
+}
+
+// Signals (Phase 7 — radar)
+export async function upsertSignal(s: Signal): Promise<Signal> {
+  ensureSeeded();
+  signals.set(s.id, s);
+  persist();
+  return s;
+}
+export async function getSignal(id: string): Promise<Signal | undefined> {
+  ensureSeeded();
+  return signals.get(id);
+}
+export async function listSignals(opts?: { status?: string; marketId?: string; limit?: number }): Promise<Signal[]> {
+  ensureSeeded();
+  let arr = Array.from(signals.values());
+  if (opts?.status) arr = arr.filter((s) => s.status === opts.status);
+  if (opts?.marketId) arr = arr.filter((s) => s.market_id === opts.marketId);
+  // Newest first by fetched_at
+  arr.sort((a, b) => (b.fetched_at > a.fetched_at ? 1 : b.fetched_at < a.fetched_at ? -1 : 0));
+  if (opts?.limit) arr = arr.slice(0, opts.limit);
+  return arr;
+}
+export async function promoteSignal(signalId: string, playId: string): Promise<Signal | undefined> {
+  ensureSeeded();
+  const s = signals.get(signalId);
+  if (!s) return undefined;
+  const updated: Signal = { ...s, status: "promoted", promoted_to_play_id: playId };
+  signals.set(signalId, updated);
+  persist();
+  return updated;
+}
+export async function dismissSignal(signalId: string, reason: string): Promise<Signal | undefined> {
+  ensureSeeded();
+  const s = signals.get(signalId);
+  if (!s) return undefined;
+  const updated: Signal = { ...s, status: "dismissed", dismissed_reason: reason };
+  signals.set(signalId, updated);
+  persist();
+  return updated;
 }
 
 // Corrections

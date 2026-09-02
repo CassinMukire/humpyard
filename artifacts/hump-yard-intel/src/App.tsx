@@ -8,6 +8,7 @@ import Dossiers from "@/pages/dossiers";
 import DossierDetail from "@/pages/dossier";
 import ReviewQueuePage from "@/pages/review-queue";
 import BattleCardsPage from "@/pages/battle-cards";
+import SignalsPage from "@/pages/signals";
 import Login from "@/pages/login";
 
 const queryClient = new QueryClient();
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/review-queue" component={ReviewQueuePage} />
       <Route path="/battle-cards" component={BattleCardsPage} />
       <Route path="/battle-cards/:orgId" component={BattleCardsPage} />
+      <Route path="/signals" component={SignalsPage} />
       <Route path="/login" component={Login} />
       <Route component={NotFound} />
     </Switch>

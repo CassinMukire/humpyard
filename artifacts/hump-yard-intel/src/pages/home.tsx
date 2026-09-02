@@ -52,6 +52,11 @@ export default function Home() {
                 <Swords className="w-3.5 h-3.5 mr-1" /> Battle Cards
               </Button>
             </Link>
+            <Link href="/signals">
+              <Button variant="ghost" size="sm" className="text-xs font-mono h-8">
+                <Radar className="w-3.5 h-3.5 mr-1" /> Radar
+              </Button>
+            </Link>
           </div>
 
           {/* Status indicator */}

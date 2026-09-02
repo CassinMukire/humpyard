@@ -158,3 +158,73 @@ export function linkedInSearchUrl(name: string, org: string | null): string {
   const keywords = [name, org].filter(Boolean).join(" ");
   return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(keywords)}`;
 }
+
+// -----------------------------------------------------------------------------
+// Signals — Phase 7 radar
+// -----------------------------------------------------------------------------
+
+export type SignalSource =
+  | "ted_eu"
+  | "cupt_feniks"
+  | "eradis"
+  | "utk"
+  | "zakazky_sz"
+  | "vaylavirasto"
+  | "exa"
+  | "manual";
+
+export type SignalStatus = "new" | "promoted" | "dismissed" | "acted";
+
+export interface Signal {
+  id: string;
+  source: SignalSource;
+  external_id: string;
+  url: string;
+  title: string;
+  summary: {
+    value: string;
+    source_url: string;
+    retrieved_at: string;
+    confidence: "V" | "O" | "I";
+    verified_by: string | null;
+  };
+  market_id: string | null;
+  posted_at: string | null;
+  fetched_at: string;
+  status: SignalStatus;
+  promoted_to_play_id: string | null;
+  dismissed_reason: string | null;
+  notes: string | null;
+}
+
+export async function listSignals(opts?: {
+  status?: SignalStatus;
+  marketId?: string;
+  limit?: number;
+}): Promise<{ items: Signal[]; count: number }> {
+  const params = new URLSearchParams();
+  if (opts?.status) params.set("status", opts.status);
+  if (opts?.marketId) params.set("market_id", opts.marketId);
+  if (opts?.limit) params.set("limit", String(opts.limit));
+  const qs = params.toString();
+  return customFetch<{ items: Signal[]; count: number }>(
+    `/api/v1/signals${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export async function promoteSignal(
+  id: string,
+  body: { action: string; owner?: string; due?: string; doctrine_ref?: string },
+): Promise<{ signal: Signal; play: { id: string; action: string } }> {
+  return customFetch(`/api/v1/signals/${encodeURIComponent(id)}/promote`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function dismissSignal(id: string, reason: string): Promise<Signal> {
+  return customFetch<Signal>(`/api/v1/signals/${encodeURIComponent(id)}/dismiss`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
