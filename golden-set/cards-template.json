@@ -1,0 +1,74 @@
+{
+  "_doc": "F6 import template — copy this to your own file, fill in the cards you want, and run: pnpm run import:cards <your-file>. The importer upserts Orgs + Persons + BattleCards. Existing rows (matching by org_id or org match_key) are updated in place. Required: org_id, name, kind, who_they_are, why_matters, trap_to_avoid. Optional: D2 fields (way_in/opening/receipt), suggested_questions (max 3), sources, known_people, persons. SourcedFacts default to [I] confidence; Cassin can promote to [O]/[V] via PUT /api/v1/battle-cards/:org_id after import.",
+  "_kind_values": ["relationship", "recon", "watchlist_plus"],
+  "_relationship_status_values": ["none", "identified", "contacted", "active", "strong"],
+  "_confidence_values": {
+    "V": "primary source (operator domain, tender portal, signed doc) OR ≥2 independent non-primary sources OR human confirmation",
+    "O": "single secondary source (press, aggregator)",
+    "I": "model inference — always labeled with inputs"
+  },
+  "cards": [
+    {
+      "_example": "Existing org from the seed (PKP PLK) — overwriting its battle card with Cassin-curated doctrine",
+      "org_id": "org_pkp_plk",
+      "name": "PKP Polskie Linie Kolejowe",
+      "kind": "relationship",
+      "who_they_are": "PKP Polskie Linie Kolejowe — Polish national rail infrastructure manager. Owns the network + yards.",
+      "why_matters": "Poland is the platform's primary dossier. PLK is the buyer of record for every hump-yard modernization on the Polish network.",
+      "trap_to_avoid": "PKP S.A. is the holding company — PLK owns the yards. Ask who opens PLK, not PKP S.A.",
+      "way_in": "Doctrine: get DECEL's specs written into PLK's 'Code for Design on Hump and Marshalling Yards' technical reference before any tender goes live.",
+      "opening": "Open with: 'We are aware PLK is reviewing its track-brake specifications for Idzikowice and would value a technical exchange on modern alternatives.'",
+      "receipt": "Cassin: 'Yes, we'll loop in our PLK liaison and get a meeting on the Q4 2026 calendar.' → monday Play with date.",
+      "suggested_questions": [
+        "Where is the 'Code for Design on Hump and Marshalling Yards' in its current revision cycle?",
+        "Which yards are on the 2027 capex list?",
+        "Is PLK open to a technical exchange before the Idzikowice tender brief is finalised?"
+      ],
+      "sources": [
+        { "url": "https://www.plk-sa.pl", "title": "PKP Polskie Linie Kolejowe — official site" }
+      ],
+      "known_people": [],
+      "market_ids": ["pl"],
+      "innotrans_target": true
+    },
+    {
+      "_example": "New org from the Phase 2 finish seed (AŽD Praha) — first card for the CZ radar case",
+      "org_id": "org_azd_praha",
+      "name": "AŽD Praha s.r.o.",
+      "kind": "watchlist_plus",
+      "who_they_are": "AŽD Praha — Czech rail systems integrator. Hall 27/640 at InnoTrans Berlin 2026.",
+      "why_matters": "AŽD is the local CZ integrator for the Ostrava brand-new hump in design (MORAVIA CONSULT Olomouc, docs 2026, build ≥2028, 8→30 bn CZK). Get DECEL into AŽD's spec pull for the Ostrava tender.",
+      "trap_to_avoid": "AŽD integrates — they don't decide retarder spec alone. The decision is at SŽ (Správa železnic). Position AŽD as the spec carrier, not the decision-maker.",
+      "way_in": "Doctrine: meet AŽD at InnoTrans Hall 27/640, walk through the Ostrava timeline, ask for a 1:1 in October at hannover messe or directly at AŽD's Praha HQ.",
+      "opening": "Open with: 'We're tracking the Ostrava hump design and want to make sure the retarder spec aligns with modern practice before MORAVIA CONSULT finalises the brief.'",
+      "receipt": "Cassin: 'Yes, set up the AŽD meeting for late October, I'll bring the Ostrava timeline PDF.'",
+      "suggested_questions": [
+        "Where is the Ostrava retarder spec in MORAVIA CONSULT's design pack?",
+        "Is AŽD the integrator on Ostrava or only on the signalling?",
+        "Does AŽD have a relationship with SŽ's procurement team?"
+      ],
+      "sources": [
+        { "url": "https://www.azd.cz/en", "title": "AŽD Praha — official site" }
+      ],
+      "known_people": [],
+      "market_ids": ["cz"],
+      "innotrans_target": true,
+      "persons": [
+        {
+          "_example": "Optional: a person you want to track. Paste a real LinkedIn URL after searching — never store scraped data.",
+          "id": "person_azd_praha_liaison",
+          "name": "[real name after LinkedIn search]",
+          "role": "Ostrava project lead, AŽD Praha",
+          "org_id": "org_azd_praha",
+          "interests": [
+            {
+              "kind": "public_statement",
+              "summary": "Spoke at CZ rail conference 2026 about Ostrava timelines.",
+              "source_url": "https://www.azd.cz/en/news/[exact-article-url]"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
