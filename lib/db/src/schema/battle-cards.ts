@@ -32,6 +32,17 @@ export const battleCards = pgTable(
     sources: jsonb("sources").notNull().default([]),
     kind: battleCardKindEnum("kind").notNull().default("relationship"),
     recon_what_to_observe: jsonb("recon_what_to_observe"),
+    // D2: 3 curated text fields per Cassin's v1.6 brief §2. Populated by
+    // Cassin via F6 import (markdown/JSON), rendered read-only. Per the
+    // brief: "If this costs more than half a day, say so by Sep 4 and we
+    // drop it." Estimated 30 minutes — additive text columns, no migration
+    // risk beyond `ALTER TABLE ... ADD COLUMN ... NULL`.
+    //   way_in  — operator's "how do I get a meeting" (curated, not auto)
+    //   opening — first 30 seconds of a conversation hook
+    //   receipt — what success looks like for this org
+    way_in: text("way_in"),
+    opening: text("opening"),
+    receipt: text("receipt"),
     // Doctrine version tracking (§11.11) — every edit bumps this and writes
     // a doctrine_revisions row.
     doctrine_version: integer("doctrine_version").notNull().default(0),

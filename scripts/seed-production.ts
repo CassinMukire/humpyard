@@ -44,7 +44,10 @@ import {
   isDemoMode,
 } from "../artifacts/api-server/src/lib/store-factory";
 
-const BASELINE_MARKET_IDS = ["pl", "de", "kz", "uz"] as const;
+// v1.6: markets are PL (deep), DE (scan), middle-corridor (scan, replaces
+// KZ+UZ per F4), and tr (closed, example for the closed-market rule). When
+// any of these are present in the DB, the seed is considered done.
+const BASELINE_MARKET_IDS = ["pl", "de", "middle-corridor", "tr"] as const;
 const FORCE = process.argv.includes("--force");
 
 async function isAlreadySeeded(): Promise<boolean> {

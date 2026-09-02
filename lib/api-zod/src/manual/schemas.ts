@@ -103,6 +103,18 @@ export const MarketSchema = z.object({
   window_opens: z.string().nullable(),
   window_closes: z.string().nullable(),
   five_questions: FiveQuestionsSchema,
+  // Dossier depth per Cassin's v1.6 brief §3: "deep" for the platform's
+  // primary dossier (PL), "scan" for everything else. UI shows a banner
+  // on scan-level dossiers: "scan-level, not dossier-level (US-2.5)".
+  depth: z.enum(["deep", "scan"]).default("scan"),
+  // F5: sourced yard count. Nullable when no primary source is available.
+  // yard_count_source_url is the verified URL the number came from.
+  yard_count: z.number().int().nullable(),
+  yard_count_source_url: z.string().url().nullable(),
+  // F4: markets can be closed (TR, IT, NO, HU per the v1.6 brief).
+  // Closed markets keep the row for history but are filtered out of the
+  // dossier list and labelled with the closure source.
+  closed_at: z.string().nullable(),
   sources: z.array(V1SourceLinkSchema),
   created_at: z.string(),
   updated_at: z.string(),
@@ -172,6 +184,12 @@ export const OrgSchema = z.object({
   market_ids: z.array(z.string()),
   monday_item_id: z.string().nullable(),
   innotrans_target: z.boolean(),
+  // D2: cadence fields per Cassin's v1.6 brief §2. Used by the post-fair
+  // Morning Queue (Oct 1 decision). Cassin populates via the F6 import.
+  //   customer_category: K1..K7 — weekly outreach quota bucket
+  //   k1_door: a..d — K1 sub-segmentation (null if not K1)
+  customer_category: z.enum(["K1", "K2", "K3", "K4", "K5", "K6", "K7"]).nullable(),
+  k1_door: z.enum(["a", "b", "c", "d"]).nullable(),
   // Per §12.5 GDPR scope rule: criminal/corruption facts attach to Market/Org
   // level only, unnamed. This field captures such facts when relevant.
   risk_facts: z.array(SourcedFactSchema),
@@ -235,9 +253,14 @@ export const PersonSchema = z.object({
   org_id: z.string().nullable(),
   role: z.string(),
   role_history: z.array(RoleHistoryEntrySchema),
-  // LinkedIn-style profile URL (auto-populated by /api/v1/people/:id/enrich
-  // when a data-provider API is configured). See §12.5.5.
-  linkedin_url: z.string().url().nullable(),
+  // LinkedIn-style profile URL. Per Cassin's v1.6 brief F3: no enrichment
+  // API. The operator pastes this in after looking the person up via a
+  // search link. Can be a real profile URL, a search form URL, or null.
+  linkedin_url: z.string().nullable(),
+  // F3: same as linkedin_url but explicitly set by the operator via the
+  // "paste LinkedIn URL" field on the person page. Distinguishes human-
+  // recorded URLs from any future auto-fill (which is not built in v1).
+  manual_linkedin_url: z.string().url().nullable(),
   // Per Cassin's correction (Aug 22): topics of interest — each is a SourcedFact.
   // Replaces the "generate outreach" feature: humans write messages, the tool
   // tells them what to talk about.
@@ -409,6 +432,16 @@ export const BattleCardSchema = z.object({
   kind: z.enum(["relationship", "recon", "watchlist_plus"]),
   // For "recon" cards: what to observe instead of relationship content
   recon_what_to_observe: z.array(z.string()).optional(),
+  // D2: 3 curated text fields per Cassin's v1.6 brief §2. Populated by
+  // Cassin via the F6 import (markdown/JSON), rendered read-only. Cassin
+  // uses these as the "how do I open this conversation" notes that
+  // current battle cards don't have room for.
+  //   way_in   — operator's "how do I get a meeting" (curated, not auto)
+  //   opening  — first 30 seconds of a conversation hook
+  //   receipt  — what success looks like for this org
+  way_in: z.string().nullable(),
+  opening: z.string().nullable(),
+  receipt: z.string().nullable(),
   // Doctrine version tracking (§11.11)
   doctrine_version: z.number().int().nonnegative(),
   doctrine_updated_at: z.string(),

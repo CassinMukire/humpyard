@@ -22,8 +22,16 @@ export const persons = pgTable(
     org_id: text("org_id"), // FK to orgs.id — declared lazily
     role: text("role").notNull(),
     role_history: jsonb("role_history").notNull().default([]),
-    // LinkedIn-style profile URL (auto-populated by /api/v1/people/:id/enrich)
+    // LinkedIn-style profile URL. Per Cassin's v1.6 brief F3: the operator
+    // pastes this in manually after looking the person up via a search link.
+    // No scraping, no enrichment API. `linkedin_url` is whatever the
+    // operator chose to record (could be a real profile, a search URL,
+    // or null until they have one).
     linkedin_url: text("linkedin_url"),
+    // F3: same shape as linkedin_url but explicitly operator-pasted. Set
+    // when the operator uses the "paste LinkedIn URL" field on the person
+    // page. Distinguishes human-recorded URLs from any future auto-fill.
+    manual_linkedin_url: text("manual_linkedin_url"),
     // Per Cassin's correction (Aug 22): topics of interest — each is a
     // SourcedFact. The tool tells the operator what the person is interested
     // in; humans write their own messages.

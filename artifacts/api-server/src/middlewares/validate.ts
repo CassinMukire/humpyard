@@ -27,3 +27,26 @@ export function validateBody<T>(schema: ZodSchema<T>): RequestHandler {
     next();
   };
 }
+
+/**
+ * Validate req.query against a Zod schema. Same shape as validateBody but
+ * for query strings. Useful for the corrections list endpoint and any
+ * other paginated/filtered read endpoint.
+ */
+export function validateQuery<T>(schema: ZodSchema<T>): RequestHandler {
+  return (req, res, next) => {
+    const parsed = schema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({
+        error: "Invalid query parameters",
+        issues: parsed.error.issues.map((i) => ({
+          path: i.path.join("."),
+          message: i.message,
+        })),
+      });
+      return;
+    }
+    (req as unknown as { validatedQuery: T }).validatedQuery = parsed.data;
+    next();
+  };
+}

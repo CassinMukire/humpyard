@@ -64,6 +64,9 @@ router.put(
         kind: validated.kind ?? existing?.kind ?? "relationship",
         recon_what_to_observe:
           validated.recon_what_to_observe ?? existing?.recon_what_to_observe,
+        way_in: validated.way_in ?? existing?.way_in ?? null,
+        opening: validated.opening ?? existing?.opening ?? null,
+        receipt: validated.receipt ?? existing?.receipt ?? null,
         doctrine_version: nextVersion,
         doctrine_updated_at: new Date().toISOString(),
         doctrine_updated_by: validated.doctrine_updated_by ?? "unknown",

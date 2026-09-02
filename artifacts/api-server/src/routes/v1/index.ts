@@ -17,6 +17,7 @@ import battleCardsRouter from "./battle-cards";
 import mondaySyncRouter from "./monday-sync";
 import linkedinRouter from "./linkedin";
 import countryScanRouter from "./country-scan";
+import correctionsRouter from "./corrections";
 import { isDemoMode } from "../../lib/store-factory";
 import { logger } from "../../lib/logger";
 
@@ -65,5 +66,6 @@ router.use(battleCardsRouter);
 router.use(mondaySyncRouter);
 router.use(linkedinRouter);
 router.use(countryScanRouter);
+router.use(correctionsRouter);
 
 export default router;
