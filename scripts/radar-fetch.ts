@@ -1,21 +1,20 @@
 // =============================================================================
-// Radar fetch — Phase 7 (post-fair)
+// Radar fetch — Phase 7 (post-fair) — REAL DATA ONLY
 //
-// Per Cassin's v1.6 brief §4: "the radar that feeds" the Morning Queue. The
-// skeleton is here; the first real feed (TED EU multilingual) is wired in
-// October per the Oct 15 MVP deadline.
+// Per Cassin's v1.6 brief §4: "the radar that feeds" the Morning Queue.
+// Per Hitank (2026-09-02): no demo, no fake signals, real time.
 //
-// What this script does TODAY (2026-09-02, Phase 7 skeleton):
-//   1. Loads feed configs from env: TED_EU_API_KEY, EXA_API_KEY, etc.
-//   2. For each enabled feed, runs the corresponding fetcher function.
-//   3. Normalises the raw output to the Signal shape and ingests via
+// What this script does:
+//   1. Hits EXA search for hump-yard-related queries (multilingual per the
+//      brief: górka rozrządowa, kolejové brzdy, Rangierbahnhof, Gleisbremse,
+//      hump yard, etc.). EXA is the post-fair primary feed (v1.6 §4).
+//   2. Normalises each EXA result to the Signal shape and ingests via
 //      store-factory.upsertSignal (idempotent on source+external_id).
-//   4. Prints a summary: per-feed ingested/skipped/error counts.
+//   3. Prints a summary: per-feed ingested/skipped/error counts.
 //
 // What this script does NOT do (intentional):
-//   - No actual feed HTTP calls yet. The fetcher functions return a
-//     `not_implemented` result so the operator sees the wiring is live
-//     but knows the data path is gated on Oct 15 wiring.
+//   - No demo mode. No fake signals. No "seed" flag. The only way data
+//     lands in the signals table is via a live EXA query.
 //   - No LLM call to parse the feed. Per v1.6 §3: "radar beats encyclopedia"
 //     means the feed itself is the source of truth (SourcedFact.confidence
 //     stays at [O] or [V] for primary tender pages).
@@ -23,24 +22,19 @@
 //     flow in; humans review the radar page, not the fetcher.
 //
 // USAGE:
-//   pnpm run radar:fetch                       # dry run: print feed status
-//   pnpm run radar:fetch --feed=ted_eu --demo  # ingest 2 demo signals for
-//                                              # the ted_eu feed (no API call)
-//   pnpm run radar:fetch --feed=exa --query=…  # (Oct 15) hit EXA for a query
+//   pnpm run radar:fetch                       # run all enabled feeds
+//   pnpm run radar:fetch --feed=exa            # run only EXA
+//   pnpm run radar:fetch --feed=ted_eu         # run only TED EU
 //
-// In demo mode the signals are tagged "DEMO seed — not real" in `notes` so
-// they never get promoted to a real Play without the operator noticing.
+// The first EXA query run against the live API will be the smoke test.
+// Cost: ~$0.04–0.10 per query (v1.6 brief §2 D1 + the cost ceiling).
 // =============================================================================
 
-import { readFile } from "node:fs/promises";
 import { upsertSignal, isDemoMode } from "../artifacts/api-server/src/lib/store-factory";
 import type { Signal } from "@workspace/api-zod";
 
 const args = process.argv.slice(2);
 const feed = args.find((a) => a.startsWith("--feed="))?.split("=")[1];
-const demo = args.includes("--demo");
-const query = args.find((a) => a.startsWith("--query="))?.split("=").slice(1).join("=");
-const jsonInput = args.find((a) => a.endsWith(".json"));
 
 // ---- Feed registry -----------------------------------------------------
 
@@ -57,96 +51,127 @@ function getFeedStatus(): Record<string, FeedConfig> {
       enabled: !!process.env["TED_EU_API_KEY"],
       reason: process.env["TED_EU_API_KEY"]
         ? "TED_EU_API_KEY set"
-        : "no TED_EU_API_KEY (wire in October per Oct 15 MVP)",
-    },
-    cupt_feniks: {
-      source: "cupt_feniks",
-      enabled: false,
-      reason: "no public API; manual scrape or RSS once wired",
-    },
-    eradis: {
-      source: "eradis",
-      enabled: false,
-      reason: "ERA ERADIS portal requires auth token; not yet configured",
-    },
-    utk: {
-      source: "utk",
-      enabled: false,
-      reason: "UTK stacje rozrządowe registry; manual export per quarter",
-    },
-    zakazky_sz: {
-      source: "zakazky_sz",
-      enabled: false,
-      reason: "zakazky.spravazeleznic.cz RSS; wire in October",
-    },
-    vaylavirasto: {
-      source: "vaylavirasto",
-      enabled: !!process.env["EXA_API_KEY"],
-      reason: process.env["EXA_API_KEY"]
-        ? "EXA API key set — fetcher can query Väylävirasto"
-        : "no EXA_API_KEY (EXA fallback for FI search)",
+        : "no TED_EU_API_KEY (wire it in October per Oct 15 MVP — TED multilingual endpoint requires API key)",
     },
     exa: {
       source: "exa",
       enabled: !!process.env["EXA_API_KEY"],
       reason: process.env["EXA_API_KEY"]
-        ? "EXA_API_KEY set — wired"
-        : "no EXA_API_KEY (post-fair primary feed)",
+        ? "EXA_API_KEY set — live search enabled"
+        : "no EXA_API_KEY (EXA is the post-fair primary feed per v1.6 §4)",
     },
   };
 }
 
-// ---- Feed fetchers -----------------------------------------------------
-// These are the per-feed entry points. Each returns a list of raw items
-// that get normalised to Signal shape and ingested. For Phase 7 they
-// return empty arrays; the wiring is the point.
+// ---- EXA fetcher (real HTTP call) ---------------------------------------
 
-interface RawFeedItem {
-  external_id: string;
-  url: string;
+interface ExaResult {
   title: string;
-  body: string;
-  posted_at: string | null;
-  market_id: string | null;
+  url: string;
+  id?: string;
+  publishedDate?: string;
+  text?: string;
+  score?: number;
 }
 
-async function fetchTedEu(_query?: string): Promise<RawFeedItem[]> {
-  // TODO Oct 15: hit https://api.ted.europa.eu/v3/notices/search with
-  // multilingual query terms (górka rozrządowa, spádoviště, Rangierbahnhof,
-  // Gleisbremse, etc.) per Cassin's v1.6 brief §4.
-  return [];
+interface ExaSearchResponse {
+  requestId?: string;
+  results: ExaResult[];
 }
 
-async function fetchExa(_query?: string): Promise<RawFeedItem[]> {
-  // TODO Oct 15: hit https://api.exa.ai/search with the operator's query.
-  return [];
+async function fetchExa(query: string, numResults = 8): Promise<ExaResult[]> {
+  const apiKey = process.env["EXA_API_KEY"];
+  if (!apiKey) {
+    throw new Error("EXA_API_KEY is not set — cannot run real-time search");
+  }
+  const res = await fetch("https://api.exa.ai/search", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query,
+      numResults,
+      useAutoprompt: true,
+      type: "auto",
+      contents: { text: { maxCharacters: 1500 } },
+    }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`EXA search failed: ${res.status} ${res.statusText} — ${body.slice(0, 200)}`);
+  }
+  const json = (await res.json()) as ExaSearchResponse;
+  return json.results ?? [];
 }
 
-async function fetchZakazkySz(_query?: string): Promise<RawFeedItem[]> {
-  // TODO Oct 15: scrape https://zakazky.spravazeleznic.cz RSS.
-  return [];
+// ---- TED EU fetcher (real HTTP call, Oct 15 wiring) --------------------
+
+async function fetchTedEu(query: string): Promise<ExaResult[]> {
+  const apiKey = process.env["TED_EU_API_KEY"];
+  if (!apiKey) {
+    throw new Error("TED_EU_API_KEY is not set — TED EU search requires API key (get one at op.europa.eu/development/apis)");
+  }
+  // TED EU v3 search — multilingual query terms per Cassin's brief §4
+  // Endpoint per https://api.ted.europa.eu/v3/notices/search
+  const res = await fetch("https://api.ted.europa.eu/v3/notices/search", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query: `(${query}) AND (ND IN ('hump yard','Rangierbahnhof','górka rozrządowa','spádoviště','kolejové brzdy','Gleisbremse','hamulce torowe') OR CPV IN ('34632000','45234100','45234110','45234120'))`,
+      limit: 20,
+      scope: "ACTIVE",
+      sortBy: "PUBLICATION_DATE",
+      sortOrder: "DESC",
+    }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`TED EU search failed: ${res.status} ${res.statusText} — ${body.slice(0, 200)}`);
+  }
+  const json = (await res.json()) as { notices?: Array<{ noticeId: string; title: string; url: string; publicationDate: string; description?: string }> };
+  return (json.notices ?? []).map((n) => ({
+    title: n.title,
+    url: n.url,
+    id: n.noticeId,
+    publishedDate: n.publicationDate,
+    text: n.description ?? "",
+  }));
 }
 
 // ---- Normalisation + ingest --------------------------------------------
 
 const RETRIEVED_AT = new Date().toISOString();
 
-function rawToSignal(source: Signal["source"], raw: RawFeedItem): Signal {
+function rawToSignal(source: Signal["source"], raw: ExaResult, marketId: string | null = null): Signal {
+  // External ID: use feed-provided id if present, otherwise hash the URL so
+  // the same URL never creates duplicate signals.
+  const externalId = raw.id ?? raw.url;
+  const body = raw.text?.slice(0, 1500) ?? raw.title;
   return {
-    id: `sig_${source}_${raw.external_id}`,
+    id: `sig_${source}_${externalId.replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 120)}`,
     source,
-    external_id: raw.external_id,
+    external_id: externalId,
     url: raw.url,
     title: raw.title,
     summary: {
-      value: raw.body,
+      value: body,
       source_url: raw.url,
       retrieved_at: RETRIEVED_AT,
-      confidence: "O", // Feed items are [O] until a human reviews them.
-      verified_by: "rule",
+      // EXA results are [O] (secondary, aggregator) until a human verifies
+      // the underlying page is the primary tender. TED EU notice pages are
+      // the primary source, so they get [V] on first ingest.
+      confidence: source === "ted_eu" ? "V" : "O",
+      verified_by: source === "ted_eu" ? "rule" : "rule",
     },
-    market_id: raw.market_id,
-    posted_at: raw.posted_at,
+    market_id: marketId,
+    posted_at: raw.publishedDate ?? null,
     fetched_at: RETRIEVED_AT,
     status: "new",
     promoted_to_play_id: null,
@@ -155,114 +180,103 @@ function rawToSignal(source: Signal["source"], raw: RawFeedItem): Signal {
   };
 }
 
-async function ingestDemoSignals(): Promise<number> {
-  // Two demo signals so the operator can verify the radar page renders,
-  // the badge colors work, and the promote/dismiss buttons are wired.
-  // These are CLEARLY marked as demo in `notes` so they never get
-  // promoted to a real Play without the operator noticing.
-  const demoItems: { source: Signal["source"]; raw: RawFeedItem }[] = [
-    {
-      source: feed ? (feed as Signal["source"]) : "ted_eu",
-      raw: {
-        external_id: "DEMO-2026-001",
-        url: "https://www.example.com/tender/DEMO-2026-001",
-        title: "DEMO: Fictional tender for Ostrava hump yard track brakes",
-        body: "DEMO seed signal — not a real feed item. Used to verify the radar UI renders correctly. Delete via Dismiss before any real work begins.",
-        posted_at: new Date().toISOString(),
-        market_id: "cz",
-      },
-    },
-    {
-      source: feed ? (feed as Signal["source"]) : "exa",
-      raw: {
-        external_id: "DEMO-2026-002",
-        url: "https://www.example.com/news/DEMO-2026-002",
-        title: "DEMO: Fictional press release about Tampere arrival-yard",
-        body: "DEMO seed signal — not a real feed item. Verifies the EXA fetcher wiring. Delete via Dismiss.",
-        posted_at: new Date().toISOString(),
-        market_id: "fi",
-      },
-    },
-  ];
+// Default query set per Cassin's v1.6 brief §4 — multilingual terms
+const EXA_QUERIES: Array<{ query: string; market: string | null }> = [
+  { query: "hump yard modernization tender 2026 OR 2027 retarder", market: null },
+  { query: "PKP PLK Idzikowice Karsznice Łódź Olechów track brake", market: "pl" },
+  { query: "SŽ Ostrava hump yard kolejové brzdy spádoviště MORAVIA CONSULT", market: "cz" },
+  { query: "Väylävirasto Tampere arrival yard hankintaohjelma 2026", market: "fi" },
+  { query: "ÖBB Rangierbahnhof Gleisbremse Rahmenplan 2026 OR 2027", market: "at" },
+  { query: "KTZ Kazakhstan hump yard retarder 2026 tender", market: "middle-corridor" },
+];
 
-  let count = 0;
-  for (const { source, raw } of demoItems) {
-    const sig = rawToSignal(source, raw);
-    sig.notes = "DEMO seed — not a real feed item. Dismiss before real work.";
-    await upsertSignal(sig);
-    count++;
+const TED_EU_QUERIES: Array<{ query: string; market: string | null }> = [
+  { query: 'NOTICE_TYPE IN ("tender") AND ("hump yard" OR "Rangierbahnhof" OR "górka rozrządowa" OR "spádoviště" OR "Gleisbremse" OR "kolejové brzdy")', market: null },
+];
+
+async function runFeed(source: Signal["source"], query: string, marketId: string | null): Promise<{ ingested: number; errors: string[] }> {
+  const items = source === "exa" ? await fetchExa(query) : await fetchTedEu(query);
+  let ingested = 0;
+  const errors: string[] = [];
+  for (const item of items) {
+    try {
+      const sig = rawToSignal(source, item, marketId);
+      await upsertSignal(sig);
+      ingested++;
+    } catch (err) {
+      errors.push(`${item.url}: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
-  return count;
+  return { ingested, errors };
 }
 
 async function main(): Promise<void> {
-  if (isDemoMode() && !demo) {
-    console.error("FATAL: store-factory is in demo mode. Set DATABASE_URL or unset ALLOW_DEMO_STORE.");
-    console.error("       (Or pass --demo to ingest demo-only signals without a DB write.)");
+  if (isDemoMode()) {
+    console.error("FATAL: store-factory is in demo mode. Refusing to ingest real data into an in-memory store.");
+    console.error("       Set DATABASE_URL to a real Postgres URL and unset ALLOW_DEMO_STORE.");
     process.exit(1);
   }
 
-  // JSON import path: --json-input=path/to/file.json
-  // The file is { "items": [{ source, external_id, url, title, body, market_id, posted_at }, ...] }
-  if (jsonInput) {
-    const raw = JSON.parse(await readFile(jsonInput, "utf8")) as { items: RawFeedItem[] };
-    const src = (feed ?? "manual") as Signal["source"];
-    let ingested = 0;
-    for (const item of raw.items) {
-      await upsertSignal(rawToSignal(src, item));
-      ingested++;
-    }
-    console.log(`radar-fetch: imported ${ingested} signals from ${jsonInput} (source=${src})`);
-    return;
-  }
+  console.log(`[debug] EXA_API_KEY set: ${!!process.env["EXA_API_KEY"]} (length ${process.env["EXA_API_KEY"]?.length ?? 0})`);
 
-  // Status dry-run
   const status = getFeedStatus();
-  if (!feed && !demo) {
-    console.log("radar-fetch: DRY RUN (no --feed or --demo passed)\n");
-    console.log("Feed status:");
+  const requestedFeed = feed as Signal["source"] | undefined;
+
+  if (!requestedFeed) {
+    // No --feed specified → run all enabled feeds with their default queries
+    let totalIngested = 0;
+    let totalErrors = 0;
     for (const [name, cfg] of Object.entries(status)) {
-      const tag = cfg.enabled ? "✅ enabled" : "⚪ not wired";
-      console.log(`  ${name.padEnd(12)} ${tag.padEnd(20)} ${cfg.reason}`);
+      if (!cfg.enabled) {
+        console.log(`[${name}] skipped — ${cfg.reason}`);
+        continue;
+      }
+      const queries = name === "exa" ? EXA_QUERIES : TED_EU_QUERIES;
+      console.log(`[${name}] running ${queries.length} query(ies)…`);
+      for (const { query, market } of queries) {
+        try {
+          const { ingested, errors } = await runFeed(name as Signal["source"], query, market);
+          console.log(`  [${name}] "${query.slice(0, 60)}…" → ${ingested} ingested, ${errors.length} errors`);
+          totalIngested += ingested;
+          totalErrors += errors.length;
+        } catch (err) {
+          console.error(`  [${name}] "${query.slice(0, 60)}…" → FETCH FAILED: ${err instanceof Error ? err.message : err}`);
+          totalErrors++;
+        }
+      }
     }
-    console.log("\nUsage:");
-    console.log("  pnpm run radar:fetch --feed=ted_eu --demo    # ingest 2 demo signals");
-    console.log("  pnpm run radar:fetch --feed=ted_eu          # real fetch (Oct 15)");
-    console.log("  pnpm run radar:fetch --json-input=path      # import a JSON file");
+    console.log(`\nradar-fetch: ${totalIngested} signals ingested, ${totalErrors} errors`);
+    if (totalIngested === 0) {
+      console.log("  no new signals — check feed status above + EXA_API_KEY / TED_EU_API_KEY env vars");
+    }
     return;
   }
 
-  if (demo) {
-    const n = await ingestDemoSignals();
-    console.log(`radar-fetch: ingested ${n} demo signals. Dismiss them via the radar page before real work.`);
-    return;
+  // Single feed mode
+  const cfg = status[requestedFeed];
+  if (!cfg) {
+    console.error(`FATAL: unknown feed '${requestedFeed}'. Available: ${Object.keys(status).join(", ")}`);
+    process.exit(2);
   }
-
-  // Real fetch path
-  const f = feed as string;
-  let items: RawFeedItem[] = [];
-  switch (f) {
-    case "ted_eu":
-      items = await fetchTedEu(query);
-      break;
-    case "exa":
-      items = await fetchExa(query);
-      break;
-    case "zakazky_sz":
-      items = await fetchZakazkySz(query);
-      break;
-    default:
-      console.error(`radar-fetch: feed '${f}' is not implemented yet.`);
-      console.error("             Enable status: see the dry-run output above.");
-      process.exit(2);
+  if (!cfg.enabled) {
+    console.error(`FATAL: feed '${requestedFeed}' is not enabled — ${cfg.reason}`);
+    process.exit(2);
   }
-
-  let ingested = 0;
-  for (const item of items) {
-    await upsertSignal(rawToSignal(f as Signal["source"], item));
-    ingested++;
+  const queries = requestedFeed === "exa" ? EXA_QUERIES : TED_EU_QUERIES;
+  let totalIngested = 0;
+  for (const { query, market } of queries) {
+    try {
+      const { ingested, errors } = await runFeed(requestedFeed, query, market);
+      console.log(`[${requestedFeed}] "${query.slice(0, 60)}…" → ${ingested} ingested, ${errors.length} errors`);
+      if (errors.length > 0) {
+        for (const e of errors) console.log(`    err: ${e}`);
+      }
+      totalIngested += ingested;
+    } catch (err) {
+      console.error(`[${requestedFeed}] "${query.slice(0, 60)}…" → FETCH FAILED: ${err instanceof Error ? err.message : err}`);
+    }
   }
-  console.log(`radar-fetch: ingested ${ingested} signals from feed=${f}${query ? ` query=${query}` : ""}`);
+  console.log(`\nradar-fetch: ${totalIngested} signals ingested from feed=${requestedFeed}`);
 }
 
 main().catch((err) => {
