@@ -23,6 +23,7 @@ import { readFile, writeFile, mkdir, cp } from "node:fs/promises";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { listBattleCards, listOrgs } from "../artifacts/api-server/src/lib/store-factory";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,7 +51,6 @@ interface BattleCard {
 }
 
 async function loadBattleCards(): Promise<BattleCard[]> {
-  const { listBattleCards } = await import("../artifacts/api-server/src/lib/store-factory.js");
   const { cards } = await listBattleCards();
   return cards as BattleCard[];
 }
@@ -204,10 +204,9 @@ async function main(): Promise<void> {
 
   // Render each card
   const indexEntries: Array<{ org_id: string; name: string; kind: string; file: string }> = [];
+  const orgs = await listOrgs();
   for (const card of cards) {
     // Look up the org name. The card has org_id only; we can fetch the org.
-    const { listOrgs } = await import("../artifacts/api-server/src/lib/store-factory.js");
-    const orgs = await listOrgs();
     const org = orgs.find((o) => o.id === card.org_id);
     const name = org?.name ?? card.org_id;
     const file = `${card.org_id.replace(/[^a-z0-9-]/gi, "_")}.html`;
