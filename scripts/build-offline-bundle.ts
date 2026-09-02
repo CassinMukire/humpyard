@@ -52,8 +52,8 @@ interface BattleCard {
 
 async function loadBattleCards(): Promise<BattleCard[]> {
   const result = await listBattleCards();
-  console.log(`  [debug] listBattleCards returned:`, JSON.stringify(result).slice(0, 200));
-  return (result?.cards ?? []) as BattleCard[];
+  // listBattleCards returns the array directly (not wrapped in {cards: []}).
+  return (Array.isArray(result) ? result : (result?.cards ?? [])) as BattleCard[];
 }
 
 function escapeHtml(s: string): string {
