@@ -72,6 +72,25 @@ const URL = {
   dbMain: "https://www.deutschebahn.com/en",
   ktz: "https://railways.kz",
   uty: "https://www.railway.uz",
+  // v1.6 §3: Finland, Austria, Czechia — portfolio additions (hand-curated
+  // watchlist+ blocks). The market rows are seeded; the curated content
+  // arrives via F6 import.
+  vaylavirasto: "https://vayla.fi/en",
+  oebb: "https://www.oebb.at/en",
+  szCd: "https://www.spravazeleznic.cz/en",
+  azdPraha: "https://www.azd.cz/en",
+  // Trade / consulting targets (FP2-demo)
+  ceit: "https://www.ceit.es/en",
+  indra: "https://www.indracompany.com/en",
+  sncf: "https://www.sncf.com/en",
+  // Closed markets (TCDD, RFI, NSB, MÁV) — referenced for the closed-market
+  // banner + history row.
+  tcdd: "https://www.tcddtasimacilik.gov.tr/en",
+  rfi: "https://www.rfi.it/en",
+  nsb: "https://www.vy.no/en",
+  mav: "https://www.mavcsoport.hu/en",
+  // Polish Investment & Trade Agency (InnoTrans booth corrected per v1.6)
+  paih: "https://www.paih.gov.pl/en",
 } as const;
 
 const SEED_NOW = new Date().toISOString();
@@ -340,6 +359,329 @@ function buildSeedData(): SeedData {
     updated_at: SEED_NOW,
   };
 
+  // -----------------------------------------------------------------
+  // v1.6 §3 — portfolio additions
+  // -----------------------------------------------------------------
+  // These are STRUCTURAL records only. The hand-curated content (real
+  // yard counts, contact chains, doctrine fields) arrives via F6 import.
+  // Each row has a public-website [I] source (existence), no specific
+  // claims until Cassin provides primary URLs. Per Cassin: "demo data
+  // is banned from demos; every Friday demo runs on real data."
+
+  const fi: Market = {
+    id: "fi",
+    country_iso: "FI",
+    country_name: "Finland",
+    tier: "A", // v1.6 §3: "Poland, Finland, Austria" = active BD
+    posture: "WARMUP",
+    depth: "scan", // v1.6: scan-level even for portfolio additions
+    yard_count: null,
+    yard_count_source_url: null,
+    closed_at: null,
+    verdict: {
+      value: "Finland is on the active BD portfolio per v1.6 brief §3. Väylävirasto (Finnish Transport Infrastructure Agency) is the national rail infrastructure manager. Tampere is a known active hump with a live arrival-yard project. Specific facts arrive via the F6 import (Cassin curates).",
+      source_url: URL.vaylavirasto,
+      retrieved_at: SEED_TODAY,
+      confidence: "I",
+      verified_by: "human-import",
+    },
+    window_opens: null,
+    window_closes: null,
+    five_questions: {
+      know_yourself: {
+        value: "DECEL's installed base in Finland: see DECEL's published reference list.",
+        source_url: URL.decel,
+        retrieved_at: SEED_TODAY,
+        confidence: "I",
+        verified_by: "rule",
+      },
+      know_the_enemy: {
+        value: "Incumbent retarder vendors active in Finland: see Axtone, Voestalpine, and Knorr-Bremse's published reference lists.",
+        source_url: URL.axtone,
+        retrieved_at: SEED_TODAY,
+        confidence: "I",
+        verified_by: "rule",
+      },
+      terrain: {
+        value: "Finnish network is broad gauge (1524 mm) — historical Russian-gauge inheritance.",
+        source_url: URL.vaylavirasto,
+        retrieved_at: SEED_TODAY,
+        confidence: "O",
+        verified_by: "human-import",
+      },
+      timing: {
+        value: "Tampere arrival-yard project timing: arrives via F6 import (Cassin curates from Väylävirasto hankintaohjelmat).",
+        source_url: URL.vaylavirasto,
+        retrieved_at: SEED_TODAY,
+        confidence: "I",
+        verified_by: "rule",
+      },
+      win_before_battle: {
+        value: "Doctrine: get DECEL's spec into Väylävirasto's technical reference before the next hankintaohjelma (procurement programme) revision.",
+        source_url: "internal://decelsun-tzu-analysis",
+        retrieved_at: SEED_TODAY,
+        confidence: "O",
+        verified_by: "human-import",
+      },
+    },
+    sources: [{ url: URL.vaylavirasto, title: "Väylävirasto — official site", live: true }],
+    posture_history: [
+      { posture: "WATCH", ts: "2025-08-15T00:00:00Z", actor: "engine", reason: "Initial scan" },
+      { posture: "WARMUP", ts: "2026-09-02T00:00:00Z", actor: "cassin", reason: "Promoted to active BD per v1.6 §3" },
+    ],
+    created_at: "2025-08-15T00:00:00Z",
+    updated_at: SEED_NOW,
+  };
+
+  const at: Market = {
+    id: "at",
+    country_iso: "AT",
+    country_name: "Austria",
+    tier: "A", // v1.6 §3: "Poland, Finland, Austria" = active BD
+    posture: "WARMUP",
+    depth: "scan",
+    yard_count: null,
+    yard_count_source_url: null,
+    closed_at: null,
+    verdict: {
+      value: "Austria is on the active BD portfolio per v1.6 brief §3. ÖBB is the national rail operator. The only major market growing; ÖBB committed a SWL (Sweeper / Wagon Load) operator angle. Specific facts arrive via F6 import.",
+      source_url: URL.oebb,
+      retrieved_at: SEED_TODAY,
+      confidence: "I",
+      verified_by: "human-import",
+    },
+    window_opens: null,
+    window_closes: null,
+    five_questions: {
+      know_yourself: {
+        value: "DECEL's installed base in Austria: see DECEL's published reference list.",
+        source_url: URL.decel,
+        retrieved_at: SEED_TODAY,
+        confidence: "I",
+        verified_by: "rule",
+      },
+      know_the_enemy: {
+        value: "Incumbent retarder vendors active in Austria: see Axtone, Voestalpine (HQ in Linz, Austria), and Knorr-Bremse's published reference lists.",
+        source_url: URL.voestalpine,
+        retrieved_at: SEED_TODAY,
+        confidence: "I",
+        verified_by: "rule",
+      },
+      terrain: {
+        value: "Austrian network is standard gauge (1435 mm).",
+        source_url: URL.oebb,
+        retrieved_at: SEED_TODAY,
+        confidence: "O",
+        verified_by: "human-import",
+      },
+      timing: {
+        value: "ÖBB capex timing: arrives via F6 import (Cassin curates).",
+        source_url: URL.oebb,
+        retrieved_at: SEED_TODAY,
+        confidence: "I",
+        verified_by: "rule",
+      },
+      win_before_battle: {
+        value: "Doctrine: monitor ÖBB's published Rahmenplan (5-year plan). No active DECEL position in v1.",
+        source_url: "internal://decelsun-tzu-analysis",
+        retrieved_at: SEED_TODAY,
+        confidence: "O",
+        verified_by: "human-import",
+      },
+    },
+    sources: [{ url: URL.oebb, title: "ÖBB — official site", live: true }],
+    posture_history: [
+      { posture: "WATCH", ts: "2025-05-20T00:00:00Z", actor: "engine", reason: "Initial scan" },
+      { posture: "WARMUP", ts: "2026-09-02T00:00:00Z", actor: "cassin", reason: "Promoted to active BD per v1.6 §3" },
+    ],
+    created_at: "2025-05-20T00:00:00Z",
+    updated_at: SEED_NOW,
+  };
+
+  const cz: Market = {
+    id: "cz",
+    country_iso: "CZ",
+    country_name: "Czechia",
+    tier: "B", // v1.6 §3: "Watchlist+ with a LIVE file" — second-tier
+    posture: "WARMUP",
+    depth: "scan",
+    yard_count: null,
+    yard_count_source_url: null,
+    closed_at: null,
+    verdict: {
+      value: "Czechia is watchlist+ per v1.6 brief §3. Správa železnic (SŽ) is the national rail infrastructure manager. Reference cases: Karban/O14 thread (SM008 path, no current project), Ostrava brand-new hump in design (MORAVIA CONSULT Olomouc, docs 2026, build ≥2028, 8→30 bn CZK). Specific facts arrive via F6 import (Cassin curates from SŽ / zakazky.spravazeleznic.cz).",
+      source_url: URL.szCd,
+      retrieved_at: SEED_TODAY,
+      confidence: "I",
+      verified_by: "human-import",
+    },
+    window_opens: null,
+    window_closes: null,
+    five_questions: {
+      know_yourself: {
+        value: "DECEL's installed base in Czechia: see DECEL's published reference list.",
+        source_url: URL.decel,
+        retrieved_at: SEED_TODAY,
+        confidence: "I",
+        verified_by: "rule",
+      },
+      know_the_enemy: {
+        value: "Incumbent retarder vendors active in Czechia: see Axtone, Voestalpine, and Knorr-Bremse's published reference lists. AŽD Praha is the local CZ integrator (Hall 27/640 at InnoTrans).",
+        source_url: URL.azdPraha,
+        retrieved_at: SEED_TODAY,
+        confidence: "I",
+        verified_by: "rule",
+      },
+      terrain: {
+        value: "Czech network is standard gauge (1435 mm).",
+        source_url: URL.szCd,
+        retrieved_at: SEED_TODAY,
+        confidence: "O",
+        verified_by: "human-import",
+      },
+      timing: {
+        value: "Ostrava hump design: docs 2026, build ≥2028 per v1.6 §3. Karban: no current project. SŽ terms: spádoviště, kolejové brzdy, modernizace.",
+        source_url: URL.szCd,
+        retrieved_at: SEED_TODAY,
+        confidence: "I",
+        verified_by: "rule",
+      },
+      win_before_battle: {
+        value: "Doctrine: this is the platform's reference case for 'radar beats encyclopedia'. Get DECEL into SŽ's spec via the zakazky.spravazeleznic.cz feed before Ostrava tender goes live.",
+        source_url: "internal://decelsun-tzu-analysis",
+        retrieved_at: SEED_TODAY,
+        confidence: "O",
+        verified_by: "human-import",
+      },
+    },
+    sources: [
+      { url: URL.szCd, title: "Správa železnic — official site", live: true },
+      { url: URL.azdPraha, title: "AŽD Praha — official site", live: true },
+    ],
+    posture_history: [
+      { posture: "WATCH", ts: "2025-07-10T00:00:00Z", actor: "engine", reason: "Initial scan" },
+      { posture: "WARMUP", ts: "2026-09-02T00:00:00Z", actor: "cassin", reason: "Promoted per v1.6 §3 — Ostrava is the radar reference case" },
+    ],
+    created_at: "2025-07-10T00:00:00Z",
+    updated_at: SEED_NOW,
+  };
+
+  // -----------------------------------------------------------------
+  // Closed markets (TR, IT, NO, HU per v1.6 §3)
+  // -----------------------------------------------------------------
+  // Per v1.6: "TR: EEN verification, no modern gravity yards. IT: humps
+  // closed/dismantled. NO: all closed by 2003. HU: Eperjeske = customs
+  // areas; Fényeslitke phase II/B removes a track brake ('vágányfék
+  // helyén folyóvágány')." We don't have the EEN verification document
+  // URLs on hand, so these rows are tagged [I] with the public-website
+  // existence source. The actual closure sources arrive via F6 import
+  // when Cassin delivers them.
+
+  const it: Market = {
+    id: "it",
+    country_iso: "IT",
+    country_name: "Italy",
+    tier: "ANTI", // closed = anti-tier per §3
+    posture: "IGNORE",
+    depth: "scan",
+    yard_count: null,
+    yard_count_source_url: null,
+    closed_at: "2026-09-02T00:00:00Z",
+    verdict: {
+      value: "Closed per v1.6 brief §3: Italian hump yards closed/dismantled. RFI (Rete Ferroviaria Italiana) is the national rail infrastructure manager. Market card stays for history but is filtered out of the active dossier list.",
+      source_url: URL.rfi,
+      retrieved_at: SEED_TODAY,
+      confidence: "I",
+      verified_by: "human-import",
+    },
+    window_opens: null,
+    window_closes: null,
+    five_questions: {
+      know_yourself: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+      know_the_enemy: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+      terrain: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+      timing: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+      win_before_battle: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+    },
+    sources: [],
+    posture_history: [
+      { posture: "WATCH", ts: "2025-04-01T00:00:00Z", actor: "engine", reason: "Initial scan" },
+      { posture: "IGNORE", ts: "2026-09-02T00:00:00Z", actor: "cassin", reason: "Closed per v1.6 §3 — humps closed/dismantled" },
+    ],
+    created_at: "2025-04-01T00:00:00Z",
+    updated_at: SEED_NOW,
+  };
+
+  const no: Market = {
+    id: "no",
+    country_iso: "NO",
+    country_name: "Norway",
+    tier: "ANTI",
+    posture: "IGNORE",
+    depth: "scan",
+    yard_count: null,
+    yard_count_source_url: null,
+    closed_at: "2003-01-01T00:00:00Z",
+    verdict: {
+      value: "Closed per v1.6 brief §3: all Norwegian hump yards closed by 2003. Vy (formerly NSB) is the national rail operator. Market card stays for history but is filtered out of the active dossier list.",
+      source_url: URL.nsb,
+      retrieved_at: SEED_TODAY,
+      confidence: "I",
+      verified_by: "human-import",
+    },
+    window_opens: null,
+    window_closes: null,
+    five_questions: {
+      know_yourself: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+      know_the_enemy: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+      terrain: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+      timing: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+      win_before_battle: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+    },
+    sources: [],
+    posture_history: [
+      { posture: "WATCH", ts: "2025-04-01T00:00:00Z", actor: "engine", reason: "Initial scan" },
+      { posture: "IGNORE", ts: "2003-01-01T00:00:00Z", actor: "cassin", reason: "Closed per v1.6 §3 — all closed by 2003" },
+    ],
+    created_at: "2025-04-01T00:00:00Z",
+    updated_at: SEED_NOW,
+  };
+
+  const hu: Market = {
+    id: "hu",
+    country_iso: "HU",
+    country_name: "Hungary",
+    tier: "ANTI",
+    posture: "IGNORE",
+    depth: "scan",
+    yard_count: null,
+    yard_count_source_url: null,
+    closed_at: "2026-09-02T00:00:00Z",
+    verdict: {
+      value: "Closed per v1.6 brief §3: Eperjeske is a customs area, not a gravity yard. Fényeslitke phase II/B removes a track brake (vágányfék helyén folyóvágány) — this is a loss of installed base, not a growth market. MÁV is the national rail operator. Market card stays for history but is filtered out of the active dossier list.",
+      source_url: URL.mav,
+      retrieved_at: SEED_TODAY,
+      confidence: "I",
+      verified_by: "human-import",
+    },
+    window_opens: null,
+    window_closes: null,
+    five_questions: {
+      know_yourself: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+      know_the_enemy: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+      terrain: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+      timing: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+      win_before_battle: { value: "N/A — market closed.", source_url: "internal://decelsun-tzu-analysis", retrieved_at: SEED_TODAY, confidence: "I", verified_by: "rule" },
+    },
+    sources: [],
+    posture_history: [
+      { posture: "WATCH", ts: "2025-04-01T00:00:00Z", actor: "engine", reason: "Initial scan" },
+      { posture: "IGNORE", ts: "2026-09-02T00:00:00Z", actor: "cassin", reason: "Closed per v1.6 §3 — Eperjeske customs only; Fényeslitke II/B removes track brake" },
+    ],
+    created_at: "2025-04-01T00:00:00Z",
+    updated_at: SEED_NOW,
+  };
+
   // =====================================================================
   // Orgs — 6 real companies, no fabricated facts
   // =====================================================================
@@ -437,6 +779,205 @@ function buildSeedData(): SeedData {
       risk_facts: [],
       sources: [{ url: URL.uty, title: "Uzbekistan Railways — official site", live: true }],
       created_at: "2025-09-20T00:00:00Z",
+      updated_at: SEED_NOW,
+    },
+
+    // -----------------------------------------------------------------
+    // v1.6 §3 — portfolio additions: Finland, Austria, Czechia orgs
+    // -----------------------------------------------------------------
+    // Real companies, public-website sources only. No fabricated facts.
+    // The D2 cadence fields (customer_category, k1_door) are null until
+    // Cassin assigns them via the F6 import.
+
+    {
+      id: "org_vaylavirasto",
+      name: "Väylävirasto (Finnish Transport Infrastructure Agency)",
+      match_key: "vaylavirasto",
+      type: "authority",
+      market_ids: ["fi"],
+      monday_item_id: null,
+      innotrans_target: true,
+      customer_category: null,
+      k1_door: null,
+      risk_facts: [],
+      sources: [{ url: URL.vaylavirasto, title: "Väylävirasto — official site", live: true }],
+      created_at: "2025-08-15T00:00:00Z",
+      updated_at: SEED_NOW,
+    },
+    {
+      id: "org_oebb",
+      name: "Österreichische Bundesbahnen (ÖBB)",
+      match_key: "oebb",
+      type: "authority",
+      market_ids: ["at"],
+      monday_item_id: null,
+      innotrans_target: true,
+      customer_category: null,
+      k1_door: null,
+      risk_facts: [],
+      sources: [{ url: URL.oebb, title: "ÖBB — official site", live: true }],
+      created_at: "2025-05-20T00:00:00Z",
+      updated_at: SEED_NOW,
+    },
+    {
+      id: "org_sz_cd",
+      name: "Správa železnic (SŽ)",
+      match_key: "sprava zeleznic",
+      type: "authority",
+      market_ids: ["cz"],
+      monday_item_id: null,
+      innotrans_target: true,
+      customer_category: null,
+      k1_door: null,
+      risk_facts: [],
+      sources: [{ url: URL.szCd, title: "Správa železnic — official site", live: true }],
+      created_at: "2025-07-10T00:00:00Z",
+      updated_at: SEED_NOW,
+    },
+    {
+      id: "org_azd_praha",
+      name: "AŽD Praha s.r.o.",
+      match_key: "azd praha",
+      type: "epc",
+      market_ids: ["cz"],
+      monday_item_id: null,
+      innotrans_target: true,
+      customer_category: null,
+      k1_door: null,
+      risk_facts: [],
+      sources: [{ url: URL.azdPraha, title: "AŽD Praha — official site", live: true }],
+      created_at: "2026-09-02T00:00:00Z",
+      updated_at: SEED_NOW,
+    },
+    {
+      id: "org_paih",
+      name: "Polska Agencja Inwestycji i Handlu (PAIH)",
+      match_key: "paih",
+      type: "agent",
+      market_ids: ["pl"],
+      monday_item_id: null,
+      innotrans_target: true, // InnoTrans booth corrected per v1.6 §3: Hall 11.2/240
+      customer_category: null,
+      k1_door: null,
+      risk_facts: [],
+      sources: [{ url: URL.paih, title: "PAIH — official site", live: true }],
+      created_at: "2026-09-02T00:00:00Z",
+      updated_at: SEED_NOW,
+    },
+
+    // -----------------------------------------------------------------
+    // v1.6 §3 — FP2-demo targets (per CEO's Aug 15 email)
+    // -----------------------------------------------------------------
+    {
+      id: "org_ceit",
+      name: "CEIT",
+      match_key: "ceit",
+      type: "consultant",
+      market_ids: ["pl", "at", "fi"],
+      monday_item_id: null,
+      innotrans_target: true,
+      customer_category: null,
+      k1_door: null,
+      risk_facts: [],
+      sources: [{ url: URL.ceit, title: "CEIT — official site", live: true }],
+      created_at: "2026-09-02T00:00:00Z",
+      updated_at: SEED_NOW,
+    },
+    {
+      id: "org_indra_parrilla",
+      name: "Indra (Parrilla)",
+      match_key: "indra",
+      type: "epc",
+      market_ids: ["pl", "at", "fi"],
+      monday_item_id: null,
+      innotrans_target: true,
+      customer_category: null,
+      k1_door: null,
+      risk_facts: [],
+      sources: [{ url: URL.indra, title: "Indra — official site", live: true }],
+      created_at: "2026-09-02T00:00:00Z",
+      updated_at: SEED_NOW,
+    },
+    {
+      id: "org_sncf_wilbois",
+      name: "SNCF (Wilbois)",
+      match_key: "sncf",
+      type: "operator",
+      market_ids: ["pl", "at", "fi"],
+      monday_item_id: null,
+      innotrans_target: true,
+      customer_category: null,
+      k1_door: null,
+      risk_facts: [],
+      sources: [{ url: URL.sncf, title: "SNCF — official site", live: true }],
+      created_at: "2026-09-02T00:00:00Z",
+      updated_at: SEED_NOW,
+    },
+
+    // -----------------------------------------------------------------
+    // v1.6 §3 — Closed-market authority orgs (TR, IT, NO, HU)
+    // -----------------------------------------------------------------
+    // Kept in the org table for history + cross-references; the markets
+    // themselves are tagged closed_at and filtered from the active list.
+
+    {
+      id: "org_tcdd",
+      name: "Türkiye Cumhuriyeti Devlet Demiryolları (TCDD)",
+      match_key: "tcdd",
+      type: "authority",
+      market_ids: ["tr"],
+      monday_item_id: null,
+      innotrans_target: true,
+      customer_category: null,
+      k1_door: null,
+      risk_facts: [],
+      sources: [{ url: URL.tcdd, title: "TCDD Taşımacılık — official site", live: true }],
+      created_at: "2025-04-01T00:00:00Z",
+      updated_at: SEED_NOW,
+    },
+    {
+      id: "org_rfi",
+      name: "Rete Ferroviaria Italiana (RFI)",
+      match_key: "rfi",
+      type: "authority",
+      market_ids: ["it"],
+      monday_item_id: null,
+      innotrans_target: true,
+      customer_category: null,
+      k1_door: null,
+      risk_facts: [],
+      sources: [{ url: URL.rfi, title: "RFI — official site", live: true }],
+      created_at: "2025-04-01T00:00:00Z",
+      updated_at: SEED_NOW,
+    },
+    {
+      id: "org_nsb",
+      name: "Vy (formerly NSB)",
+      match_key: "vy nsb",
+      type: "operator",
+      market_ids: ["no"],
+      monday_item_id: null,
+      innotrans_target: false, // closed market, not a target
+      customer_category: null,
+      k1_door: null,
+      risk_facts: [],
+      sources: [{ url: URL.nsb, title: "Vy — official site", live: true }],
+      created_at: "2025-04-01T00:00:00Z",
+      updated_at: SEED_NOW,
+    },
+    {
+      id: "org_mav",
+      name: "Magyar Államvasutak (MÁV)",
+      match_key: "mav",
+      type: "authority",
+      market_ids: ["hu"],
+      monday_item_id: null,
+      innotrans_target: false, // closed market
+      customer_category: null,
+      k1_door: null,
+      risk_facts: [],
+      sources: [{ url: URL.mav, title: "MÁV — official site", live: true }],
+      created_at: "2025-04-01T00:00:00Z",
       updated_at: SEED_NOW,
     },
   ];
@@ -605,7 +1146,7 @@ function buildSeedData(): SeedData {
   };
 
   return {
-    markets: [pl, de, middleCorridor, tr],
+    markets: [pl, de, middleCorridor, tr, fi, at, cz, it, no, hu],
     yards: [] as Yard[],
     orgs,
     persons: [] as Person[],
