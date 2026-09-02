@@ -229,9 +229,12 @@ function buildSeedData(): SeedData {
   };
 
   // F4: merged KZ+UZ into one Middle Corridor view. Single market row.
+  // country_iso is constrained to 2 chars by the Drizzle schema (matches
+  // ISO 3166-1 alpha-2). "MC" is a non-ISO placeholder for "Middle
+  // Corridor"; the UI surfaces the full name (Kazakhstan + Uzbekistan).
   const middleCorridor: Market = {
     id: "middle-corridor",
-    country_iso: "MULTI",
+    country_iso: "MC",
     country_name: "Kazakhstan + Uzbekistan (Middle Corridor)",
     tier: "B",
     posture: "WATCH",
