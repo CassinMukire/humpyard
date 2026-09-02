@@ -11,9 +11,10 @@ import { useRoute, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { BriefingLayout } from "@/components/BriefingLayout";
-import { getDossier } from "@/lib/v1-api";
+import { getDossier, patchPerson, linkedInSearchUrl } from "@/lib/v1-api";
 import { customFetch, ApiError } from "@workspace/api-client-react";
 import {
   ArrowLeft,
@@ -33,10 +34,11 @@ import {
   Copy,
   Check,
   Loader2,
-  Sparkles,
   Send,
+  AlertTriangle,
+  Search,
 } from "lucide-react";
-import type { SourcedFact, Yard, Org, Person, Tier, Posture, PersonInterest } from "@workspace/api-client-react";
+import type { SourcedFact, Yard, Org, Person, Tier, Posture, PersonInterest, Market } from "@workspace/api-client-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -226,32 +228,51 @@ function YardsTable({ yards }: { yards: Yard[] }) {
 
 function PersonCard({ person, onChanged }: { person: Person; onChanged: () => void }) {
   const [copied, setCopied] = useState(false);
-  const [enrichError, setEnrichError] = useState<string | null>(null);
+  const [pasteValue, setPasteValue] = useState<string>(person.manual_linkedin_url ?? "");
+  const [pasteError, setPasteError] = useState<string | null>(null);
   const [mondayStatus, setMondayStatus] = useState<string | null>(null);
 
+  // F3: no API enrichment. The "Search LinkedIn" button just opens a
+  // public people-search URL in a new tab. The operator pastes back the
+  // URL they found into the input below, and the route stores it on
+  // person.manual_linkedin_url (logged in the corrections table).
+  const searchUrl = linkedInSearchUrl(person.name, person.org_id ?? null);
+
   const handleCopy = () => {
-    if (person.linkedin_url) {
-      navigator.clipboard.writeText(person.linkedin_url).then(() => {
+    const url = person.manual_linkedin_url ?? person.linkedin_url;
+    if (url) {
+      navigator.clipboard.writeText(url).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       });
     }
   };
 
-  const enrichMutation = useMutation({
-    mutationFn: () => customFetch<{ person: Person; provider: string }>(`/api/v1/people/${person.id}/enrich`, { method: "POST", body: "{}" }),
+  const pasteMutation = useMutation({
+    mutationFn: (url: string | null) => patchPerson(person.id, { manual_linkedin_url: url }),
     onSuccess: () => {
-      setEnrichError(null);
+      setPasteError(null);
       onChanged();
     },
     onError: (err) => {
-      if (err instanceof ApiError && err.status === 402) {
-        setEnrichError("Proxycurl not configured");
-      } else {
-        setEnrichError(err instanceof Error ? err.message : String(err));
-      }
+      setPasteError(err instanceof Error ? err.message : String(err));
     },
   });
+
+  const handlePasteSubmit = () => {
+    const v = pasteValue.trim();
+    if (v === "") {
+      // Empty input = clear the URL
+      pasteMutation.mutate(null);
+      return;
+    }
+    // Light validation
+    if (!/^https?:\/\/(www\.)?linkedin\.com\//i.test(v)) {
+      setPasteError("Must be a linkedin.com URL (https://...)");
+      return;
+    }
+    pasteMutation.mutate(v);
+  };
 
   const mondayMutation = useMutation({
     mutationFn: () =>
@@ -319,32 +340,33 @@ function PersonCard({ person, onChanged }: { person: Person; onChanged: () => vo
         </div>
       )}
 
-      {(() => {
-        // Always show a LinkedIn affordance — either the enriched profile
-        // URL or a search URL built from the person's name. The search URL
-        // is a real, working public endpoint so the operator never sees a
-        // 404 on a fake profile slug. Once Proxycurl enrichment runs, the
-        // URL is replaced with the verified profile.
-        const searchUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(
-          person.name,
-        )}`;
-        const href = person.linkedin_url ?? searchUrl;
-        const isEnriched = !!person.linkedin_url;
-        return (
-          <div className="flex flex-wrap gap-2 pt-1">
+      {/* F3: LinkedIn search + paste field. No API enrichment. */}
+      <div className="space-y-2 pt-1">
+        <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+          LinkedIn
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={searchUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-mono px-2 py-1 border border-blue-600/50 text-blue-400 hover:bg-blue-600/10 transition-colors"
+            title="Open LinkedIn people search in a new tab (name + org)"
+          >
+            <Search className="w-3 h-3" /> Search LinkedIn
+          </a>
+          {(person.manual_linkedin_url ?? person.linkedin_url) && (
             <a
-              href={href}
+              href={person.manual_linkedin_url ?? person.linkedin_url ?? "#"}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-mono px-2 py-1 border border-blue-600/50 text-blue-400 hover:bg-blue-600/10 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs font-mono px-2 py-1 border border-green-600/50 text-green-400 hover:bg-green-600/10 transition-colors"
+              title="The LinkedIn URL the operator pasted"
             >
-              <Linkedin className="w-3 h-3" /> {isEnriched ? "Open LinkedIn" : "Search LinkedIn"}
+              <Linkedin className="w-3 h-3" /> Open
             </a>
-            {!isEnriched && (
-              <span className="inline-flex items-center text-[10px] text-muted-foreground/70 font-mono">
-                (not yet enriched — click to find profile)
-              </span>
-            )}
+          )}
+          {(person.manual_linkedin_url ?? person.linkedin_url) && (
             <button
               onClick={handleCopy}
               className="inline-flex items-center gap-1.5 text-xs font-mono px-2 py-1 border border-border text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
@@ -352,32 +374,42 @@ function PersonCard({ person, onChanged }: { person: Person; onChanged: () => vo
               {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
               {copied ? "Copied" : "Copy URL"}
             </button>
-          </div>
-        );
-      })()}
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Input
+            type="url"
+            placeholder="Paste LinkedIn URL after searching..."
+            value={pasteValue}
+            onChange={(e) => setPasteValue(e.target.value)}
+            className="text-xs font-mono h-8"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handlePasteSubmit}
+            disabled={pasteMutation.isPending}
+            className="text-xs font-mono shrink-0"
+          >
+            {pasteMutation.isPending ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              "Save"
+            )}
+          </Button>
+        </div>
+        {pasteError && (
+          <p className="text-[10px] text-amber-500 font-mono">{pasteError}</p>
+        )}
+      </div>
 
-      {/* Live API actions — exercise Proxycurl + monday end-to-end */}
+      {/* monday.com push (separate from LinkedIn flow) */}
       <div className="flex flex-wrap gap-2 pt-2 border-t border-border/50">
         <Button
           size="sm"
           variant="outline"
-          onClick={() => enrichMutation.mutate()}
-          disabled={enrichMutation.isPending || mondayMutation.isPending}
-          className="text-xs font-mono"
-          title="Pull the latest public profile + interests from Proxycurl"
-        >
-          {enrichMutation.isPending ? (
-            <Loader2 className="w-3 h-3 animate-spin mr-1" />
-          ) : (
-            <Sparkles className="w-3 h-3 mr-1" />
-          )}
-          Enrich (Proxycurl)
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
           onClick={() => mondayMutation.mutate()}
-          disabled={enrichMutation.isPending || mondayMutation.isPending}
+          disabled={mondayMutation.isPending}
           className="text-xs font-mono"
           title="Push this person to the monday.com People board"
         >
@@ -390,14 +422,12 @@ function PersonCard({ person, onChanged }: { person: Person; onChanged: () => vo
         </Button>
       </div>
 
-      {(enrichError || mondayStatus) && (
+      {mondayStatus && (
         <p className={cn(
           "text-[10px] font-mono",
-          enrichError || mondayStatus?.startsWith("error")
-            ? "text-amber-500"
-            : "text-green-500",
+          mondayStatus.startsWith("error") ? "text-amber-500" : "text-green-500",
         )}>
-          {enrichError ? `enrich: ${enrichError}` : `monday: ${mondayStatus}`}
+          monday: {mondayStatus}
         </p>
       )}
     </div>
@@ -562,6 +592,34 @@ export default function DossierDetail() {
             </div>
           </div>
         </div>
+
+        {/* D2 depth banner — per Cassin's v1.6 brief: "scan-level,
+            not dossier-level" on every non-deep market. */}
+        {market.depth === "scan" && (
+          <div
+            data-testid="depth-banner"
+            className="flex items-center gap-3 border border-amber-600/50 bg-amber-600/10 px-4 py-2.5 text-amber-500"
+          >
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <div className="text-xs font-mono leading-relaxed">
+              <span className="font-semibold uppercase tracking-wider">scan-level, not dossier-level</span>
+              {" — "}this is a watchlist+ read (US-2.5). The 5-question block is a first-pass
+              assessment, not a maintained dossier. Specific facts arrive via the F6 import
+              or OIU corpus.
+            </div>
+          </div>
+        )}
+
+        {/* Closed-market banner */}
+        {market.closed_at && (
+          <div className="flex items-center gap-3 border border-slate-600/50 bg-slate-600/10 px-4 py-2.5 text-slate-400">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <div className="text-xs font-mono leading-relaxed">
+              <span className="font-semibold uppercase tracking-wider">market closed</span>
+              {" — "}this dossier is retained for history. The market is not in the active BD pipeline.
+            </div>
+          </div>
+        )}
 
         {/* 5-question block */}
         <Card>

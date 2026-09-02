@@ -79,6 +79,37 @@ router.put(
         diff: JSON.stringify({ from: existing ?? null, to: saved }, null, 2),
         author: card.doctrine_updated_by,
       });
+      // F8: log a corrections row for each changed field. The diff is
+      // also captured in doctrine_revisions, but the corrections table
+      // is the per-field workstyle evidence (operator + old value + ts).
+      // Only fields with a real change are logged.
+      const user = card.doctrine_updated_by;
+      if (existing) {
+        const fields: (keyof BattleCard)[] = [
+          "who_they_are",
+          "why_matters",
+          "trap_to_avoid",
+          "relationship_status",
+          "kind",
+          "way_in",
+          "opening",
+          "receipt",
+        ];
+        for (const f of fields) {
+          const before = existing[f];
+          const after = saved[f];
+          if (JSON.stringify(before) !== JSON.stringify(after)) {
+            const { logCorrection } = await import("../../lib/store-factory");
+            await logCorrection({
+              fact_id: `battle_card:${orgId}.${f}`,
+              fact_kind: "battle_card",
+              action: "edit",
+              corrected_value: before as never,
+              user,
+            });
+          }
+        }
+      }
       res.json({ card: saved });
     } catch (err) {
       next(err);

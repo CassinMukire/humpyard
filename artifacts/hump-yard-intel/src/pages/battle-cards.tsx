@@ -27,6 +27,9 @@ import {
   Check,
   Loader2,
   Sparkles,
+  MessageSquare,
+  Target,
+  CheckCircle2,
 } from "lucide-react";
 import type { BattleCard } from "@workspace/api-client-react";
 
@@ -72,9 +75,14 @@ function CardView({ card }: { card: BattleCard }) {
       `WHO: ${card.who_they_are}`,
       `WHY: ${card.why_matters}`,
       `TRAP: ${card.trap_to_avoid}`,
+      card.way_in ? `WAY IN: ${card.way_in}` : "",
+      card.opening ? `OPENING: ${card.opening}` : "",
+      card.receipt ? `RECEIPT: ${card.receipt}` : "",
       card.suggested_questions.length ? `\nQUESTIONS:\n${card.suggested_questions.map((q, i) => `  ${i + 1}. ${q}`).join("\n")}` : "",
       card.recon_what_to_observe?.length ? `\nRECON:\n${card.recon_what_to_observe.map((r, i) => `  ${i + 1}. ${r}`).join("\n")}` : "",
-    ].join("\n\n");
+    ]
+      .filter(Boolean)
+      .join("\n\n");
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -181,6 +189,50 @@ function CardView({ card }: { card: BattleCard }) {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {/* D2 curated text fields — populated by Cassin via the F6 import.
+            Rendered read-only here. Empty state stays empty (no placeholder
+            text) so the operator sees what's actually curated. */}
+        {(card.way_in || card.opening || card.receipt) && (
+          <div className="space-y-2 border-l-2 border-primary/40 pl-3 py-1">
+            <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+              Cassin-curated notes (D2)
+            </p>
+            {card.way_in && (
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <MessageSquare className="w-3 h-3 text-primary" />
+                  <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                    Way in
+                  </p>
+                </div>
+                <p className="text-xs text-foreground leading-relaxed ml-5">{card.way_in}</p>
+              </div>
+            )}
+            {card.opening && (
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <Target className="w-3 h-3 text-primary" />
+                  <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                    Opening (first 30s)
+                  </p>
+                </div>
+                <p className="text-xs text-foreground leading-relaxed ml-5">{card.opening}</p>
+              </div>
+            )}
+            {card.receipt && (
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3 h-3 text-primary" />
+                  <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                    Receipt (success looks like)
+                  </p>
+                </div>
+                <p className="text-xs text-foreground leading-relaxed ml-5">{card.receipt}</p>
+              </div>
+            )}
           </div>
         )}
 

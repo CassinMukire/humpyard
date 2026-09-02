@@ -18,6 +18,7 @@ import mondaySyncRouter from "./monday-sync";
 import linkedinRouter from "./linkedin";
 import countryScanRouter from "./country-scan";
 import correctionsRouter from "./corrections";
+import peopleRouter from "./people";
 import { isDemoMode } from "../../lib/store-factory";
 import { logger } from "../../lib/logger";
 
@@ -67,5 +68,6 @@ router.use(mondaySyncRouter);
 router.use(linkedinRouter);
 router.use(countryScanRouter);
 router.use(correctionsRouter);
+router.use(peopleRouter);
 
 export default router;

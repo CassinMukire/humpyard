@@ -66,6 +66,63 @@ export function isPrimaryDomain(url: string): boolean {
   return false;
 }
 
+// =============================================================================
+// F2 source rule (Cassin v1.6 brief)
+//
+// "Every claim links to the page evidencing that claim + cached snapshot.
+//  Homepage/Wikipedia ≠ [V]."
+//
+// A "homepage" is a URL with an empty or root-only path (`/`, ``, `?query`).
+// The org's homepage is NOT evidence for any specific claim — the operator
+// can read the homepage, but the homepage doesn't say "we have 28 hump
+// yards" or "we do X capex in Q3 2026". The specific page that proves
+// the claim is required.
+//
+// Wikipedia is explicitly excluded by Cassin: the site is a tertiary
+// source (good for orientation, bad as evidence).
+// =============================================================================
+
+const HOMEPAGE_PATH_RE = /^(\/?|\?[^#]*|#.*)$/;
+const WIKIPEDIA_HOST_RE = /(?:^|\.)wikipedia\.org$/i;
+
+export interface SourceRuleDecision {
+  /** True if the URL passes the F2 source rule (page evidences the claim). */
+  ok: boolean;
+  /** If not ok, why. UI surfaces this in the badge tooltip. */
+  reason: string;
+}
+
+/**
+ * Apply the F2 source rule to a URL. Returns whether the URL is acceptable
+ * as evidence for a claim that has been labeled [V].
+ *
+ * Rejection reasons:
+ *   - "homepage" — URL has no path or just "/" / "?query"; it's the org root
+ *   - "wikipedia" — Wikipedia is excluded by spec
+ *   - "invalid" — URL doesn't parse
+ */
+export function checkSourceRule(url: string): SourceRuleDecision {
+  if (!url || url.trim() === "") {
+    return { ok: false, reason: "empty source URL" };
+  }
+  if (url.startsWith("internal://")) {
+    return { ok: true, reason: "internal (doctrine)" };
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { ok: false, reason: "invalid URL" };
+  }
+  if (WIKIPEDIA_HOST_RE.test(parsed.hostname)) {
+    return { ok: false, reason: "wikipedia.org excluded by spec" };
+  }
+  if (HOMEPAGE_PATH_RE.test(parsed.pathname + parsed.search)) {
+    return { ok: false, reason: "homepage link is not evidence for a specific claim" };
+  }
+  return { ok: true, reason: "page evidences claim" };
+}
+
 // -----------------------------------------------------------------------------
 // Gate result
 // -----------------------------------------------------------------------------
@@ -122,12 +179,26 @@ export function gateSourcedFact(fact: SourcedFact): GateDecision {
     return { result: "discard", reason: "No resolvable source_url" };
   }
 
+  // F2 source rule (Cassin v1.6): homepage / Wikipedia URLs cannot be
+  // primary evidence for any specific claim. We don't change the
+  // caller-supplied confidence here — we only annotate why a [V] is
+  // not actually rendering-eligible. The dossier route handler is
+  // expected to display the source-rule reason in the badge tooltip.
+  const sourceRule = checkSourceRule(fact.source_url);
+
   // [V] = primary source + rule verification → render
   if (fact.confidence === "V") {
     if (fact.verified_by === "human" || fact.verified_by === "human-import") {
       return { result: "render", reason: "[V] human verification" };
     }
     if (isPrimaryDomain(fact.source_url) && fact.verified_by === "rule") {
+      if (!sourceRule.ok) {
+        // F2: even on a primary domain, a homepage link is not evidence.
+        return {
+          result: "queue",
+          reason: `[V] rejected by F2 source rule: ${sourceRule.reason}`,
+        };
+      }
       return { result: "render", reason: "[V] primary domain + rule verification" };
     }
     // [V] without primary domain or human → downgrade to queue (needs human review)

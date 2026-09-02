@@ -129,3 +129,32 @@ export async function logout(): Promise<void> {
 export async function me(): Promise<{ user: string; expires_at: string | null }> {
   return customFetch<{ user: string; expires_at: string | null }>("/api/v1/auth/me");
 }
+
+// -----------------------------------------------------------------------------
+// People — F3 manual_linkedin_url paste flow
+// -----------------------------------------------------------------------------
+
+export interface PersonPatch {
+  manual_linkedin_url?: string | null;
+  relationship_status?: "none" | "identified" | "contacted" | "active" | "strong";
+}
+
+export async function patchPerson(
+  id: string,
+  patch: PersonPatch,
+): Promise<{ person: Person }> {
+  return customFetch<{ person: Person }>(
+    `/api/v1/people/${encodeURIComponent(id)}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+}
+
+/**
+ * Build the LinkedIn people-search URL the operator clicks to find a
+ * person manually. Per F3: no API enrichment. The UI opens this in a
+ * new tab, the operator pastes back the URL they found.
+ */
+export function linkedInSearchUrl(name: string, org: string | null): string {
+  const keywords = [name, org].filter(Boolean).join(" ");
+  return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(keywords)}`;
+}
