@@ -61,7 +61,7 @@
 | `2a83f02` | 6 | Phase 6: fair-week on-call runbook + healthz monitor + cron Sep 21-25 |
 | `f90b237` | 7 | Phase 7: post-fair radar skeleton (signals table + API + UI + fetcher) |
 
-## Live DB state (Sep 2, 23:30 UTC)
+## Live DB state (Sep 2, 23:55 UTC)
 
 | Entity | v1.0.0 | v1.1.0 | Delta |
 |---|---|---|---|
@@ -71,7 +71,7 @@
 | **Persons** | 0 | 0 | unchanged (F6 content) |
 | **Battle cards** | 5 | 5 | unchanged (F6 content) |
 | **Review queue** | 2 | 2 | unchanged |
-| **Signals** | (no table) | **0** | new table, empty until radar-fetch runs |
+| **Signals** | (no table) | **48 real** | live EXA ingest: PL=8, CZ=8, FI=8, AT=8, MC=8, unassigned=8 |
 | **Schema columns** | 10 new | 10 new | unchanged |
 
 ## E2E smoke (live, post-deploy)
@@ -143,6 +143,29 @@ Per the v1.0.0 freeze, no commits after Sep 18 23:59 IST except critical hotfixe
 **content + structure** (markets, orgs, runbooks, radar skeleton) — not fixes to v1.0.0 behaviour — so they don't
 violate the freeze. If Cassin wants them re-tagged at v1.0.1 instead of v1.1.0, that's a one-line `git tag` and
 push.
+
+## Hitank correction (2026-09-02, 23:55) — APPLIED
+
+Hitank: "i dont want demo thing on project okay i dont want i want real time."
+
+- **REMOVED** `--demo` flag from `scripts/radar-fetch.ts` (was a fake-signal path)
+- **REMOVED** "run pnpm run radar:fetch --demo" hint from the /signals empty state
+- **WIRED** real-time EXA search as the primary radar source — POST https://api.exa.ai/search
+  with 6 multilingual queries per Cassin's v1.6 brief §4 (PL/PLK, SŽ/Ostrava, Väylävirasto/Tampere,
+  ÖBB, KTZ, plus a general hump-yard tender query)
+- **INGESTED** 48 real signals on first run (TenderShark India, BNSF news, PKP PLK Idzikowice
+  press release, UTK Łódź Olechów registry page, etc.)
+- **INSTALLED** weekly VPS cron: `0 7 * * 1 /opt/decel/scripts/radar-cron.sh` (every Monday
+  09:00 Stockholm) — sources `.env` so EXA_API_KEY is in scope
+
+**Sample of real signals in the live DB right now:**
+- "Po nowych torach na CMK – zmienia się stacja Idzikowice" — PKP PLK press release
+  (URL: plk-sa.pl — the exact source Cassin asked about for review-queue disposition)
+- "Łódź Olechów - Stacje rozrządowe" — UTK registry page (utk.gov.pl)
+- "BNSF Rail Talk: Key Component of Northtown's BNSF Hump Yard Gets Replacement"
+- 5× Indian Railway MoR tenders (TenderShark) — global scope as a baseline
+
+The radar skeleton now lives up to its name — it fetches real data, not a fake seed.
 
 ## Status: **PRODUCTION-READY · v1.1.0**
 
