@@ -16,6 +16,7 @@
     "import:cards": "node --env-file=.env ./node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs scripts/import-curated-cards.ts",
     "snapshots:fetch": "node --env-file=.env ./node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs scripts/fetch-snapshots.ts",
     "build:offline-bundle": "node --env-file=.env ./node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs scripts/build-offline-bundle.ts",
+    "monitor:fair-week": "node ./node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs scripts/fair-week-monitor.ts",
     "start": "pnpm --filter @workspace/api-server run start",
     "prod": "pnpm run db:up && pnpm run db:push && pnpm run db:seed && pnpm run build && pnpm run start"
   },
