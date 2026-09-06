@@ -42,22 +42,30 @@ interface SnapshotIndexEntry {
   content_type: string;
 }
 
-let cache: { loadedAt: number; entries: Map<string, SnapshotIndexEntry> } | null = null;
+let cache: { loadedAt: number; mtimeMs: number; entries: Map<string, SnapshotIndexEntry> } | null = null;
 
 async function loadIndex(): Promise<Map<string, SnapshotIndexEntry>> {
-  // 60s in-memory cache so the dossier page doesn't hit disk on every fact render
-  if (cache && Date.now() - cache.loadedAt < 60_000) return cache.entries;
+  // Invalidate the cache when the index.json file changes. We track the
+  // mtimeMs so that re-running pnpm run snapshots:fetch (which rewrites
+  // the index) is picked up on the next request — without that, an empty
+  // index loaded at app startup would be served for up to 60s after the
+  // snapshot fetcher populates the volume. Fast path: if the file mtime
+  // matches the cache, skip the read.
   if (!existsSync(INDEX_PATH)) {
-    cache = { loadedAt: Date.now(), entries: new Map() };
+    cache = { loadedAt: Date.now(), mtimeMs: 0, entries: new Map() };
+    return cache.entries;
+  }
+  const st = await stat(INDEX_PATH);
+  if (cache && cache.mtimeMs === st.mtimeMs) {
     return cache.entries;
   }
   try {
     const raw = await readFile(INDEX_PATH, "utf8");
     const arr = JSON.parse(raw) as SnapshotIndexEntry[];
-    cache = { loadedAt: Date.now(), entries: new Map(arr.map((e) => [e.url, e])) };
+    cache = { loadedAt: Date.now(), mtimeMs: st.mtimeMs, entries: new Map(arr.map((e) => [e.url, e])) };
     return cache.entries;
   } catch {
-    cache = { loadedAt: Date.now(), entries: new Map() };
+    cache = { loadedAt: Date.now(), mtimeMs: st.mtimeMs, entries: new Map() };
     return cache.entries;
   }
 }
