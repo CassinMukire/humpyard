@@ -1,8 +1,15 @@
 // =============================================================================
-// Build the offline bundle (§12.2 — W34 spec)
+// Build the offline bundle (§12.2 — W34 spec + Cassin v1.7 Wed scene)
 //
 // "Static offline bundle per §12.2 — pnpm build && build:offline-bundle,
 //  scp to phone, verify airplane mode works."
+//
+// Cassin v1.7 Wednesday scene: "tap a Poland fact → cached source snapshot
+// opens, offline, with date". For the offline bundle, this means:
+//   1. Each card's source URL renders a "📸 cached (offline-safe)" link
+//      that points to snapshots/<sha>.html (relative to the card)
+//   2. The data/snapshots/*.html files are copied into
+//      dist/offline/snapshots/ so the relative links resolve
 //
 // This generates a single self-contained HTML file per battle card at
 // `dist/offline/<orgId>.html`. Each file:
@@ -12,15 +19,18 @@
 //   - works on airplane Wi-Fi (no fetch at runtime)
 //
 // USAGE:
+//   pnpm run snapshots:fetch       # populate data/snapshots/ first
 //   pnpm run build:offline-bundle
-//   → dist/offline/index.html + dist/offline/<orgId>.html
+//   → dist/offline/index.html + dist/offline/<orgId>.html + dist/offline/snapshots/
 //
 // The operator copies `dist/offline/` to their phone. The phone's browser
-// can open any card.html directly from the file system.
+// can open any card.html directly from the file system; tapping a "📸
+// cached" link opens the snapshot inline (no network needed).
 // =============================================================================
 
-import { readFile, writeFile, mkdir, cp } from "node:fs/promises";
+import { readFile, writeFile, mkdir, cp, readdir } from "node:fs/promises";
 import { existsSync, readFileSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listBattleCards, listOrgs } from "../artifacts/api-server/src/lib/store-factory";
@@ -30,6 +40,8 @@ const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, "..");
 const FRONTEND_DIST = path.join(REPO_ROOT, "artifacts", "hump-yard-intel", "dist", "public");
 const OUT_DIR = path.join(REPO_ROOT, "dist", "offline");
+const SNAPSHOT_DIR = path.join(REPO_ROOT, "data", "snapshots");
+const SNAPSHOT_INDEX = path.join(SNAPSHOT_DIR, "index.json");
 
 interface BattleCard {
   org_id: string;
@@ -65,12 +77,19 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#039;");
 }
 
-function renderCard(card: BattleCard, orgName: string, cachedAt: string): string {
+function renderCard(card: BattleCard, orgName: string, cachedAt: string, snapshots: Map<string, string>): string {
+  // Per-source rendering: each source URL gets a "live" link + a "📸 cached"
+  // link if a snapshot exists in the index. The snapshot link points to
+  // snapshots/<sha>.html (relative to the card) so it works on file://
+  // (airplane mode). No external network needed.
   const sources = card.sources
-    .map(
-      (s) =>
-        `<li><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a><br><span class="url">${escapeHtml(s.url)}</span></li>`,
-    )
+    .map((s) => {
+      const sha = snapshots.get(s.url);
+      const cached = sha
+        ? ` <a class="cached-link" href="snapshots/${sha}.html" target="_blank" rel="noopener noreferrer" title="Cached snapshot — works offline">📸 cached</a>`
+        : "";
+      return `<li><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a>${cached}<br><span class="url">${escapeHtml(s.url)}</span></li>`;
+    })
     .join("");
 
   const questions = card.suggested_questions
@@ -117,6 +136,8 @@ function renderCard(card: BattleCard, orgName: string, cachedAt: string): string
   .trap h2 { color: #fb923c; }
   .d2 { background: #0c1e3f; border-color: #1e3a8a; }
   .url { color: #666; font-size: 11px; font-family: monospace; word-break: break-all; }
+  .cached-link { display: inline-block; background: #166534; color: #fff !important; padding: 1px 6px; font-size: 10px; font-family: monospace; margin-left: 6px; border-radius: 2px; text-decoration: none; }
+  .cached-link:hover { background: #15803d; }
   .pid { color: #60a5fa; font-family: monospace; font-size: 12px; }
   .role { color: #e5e5e5; }
   .status { color: #888; font-size: 11px; }
@@ -199,8 +220,27 @@ async function main(): Promise<void> {
   await mkdir(OUT_DIR, { recursive: true });
   const cards = await loadBattleCards();
   const cachedAt = new Date().toISOString();
+
+  // Load snapshot index (Map<url, sha256>). If absent or empty, no cached
+  // links will be rendered; the live links still work in the offline bundle
+  // when the operator's phone has connectivity.
+  const snapshots: Map<string, string> = new Map();
+  let snapshotCount = 0;
+  if (existsSync(SNAPSHOT_INDEX)) {
+    try {
+      const idx = JSON.parse(await readFile(SNAPSHOT_INDEX, "utf8")) as Array<{ url: string; sha256: string }>;
+      for (const e of idx) {
+        snapshots.set(e.url, e.sha256);
+      }
+      snapshotCount = idx.length;
+    } catch {
+      // ignore — empty index
+    }
+  }
+
   console.log(`OFFLINE bundle build`);
   console.log(`  ${cards.length} cards`);
+  console.log(`  ${snapshotCount} snapshots in index (📸 cached links will render for matches)`);
   console.log(`  out: ${path.relative(REPO_ROOT, OUT_DIR)}`);
 
   // Render each card
@@ -211,10 +251,25 @@ async function main(): Promise<void> {
     const org = orgs.find((o) => o.id === card.org_id);
     const name = org?.name ?? card.org_id;
     const file = `${card.org_id.replace(/[^a-z0-9-]/gi, "_")}.html`;
-    const html = renderCard(card, name, cachedAt);
+    const html = renderCard(card, name, cachedAt, snapshots);
     await writeFile(path.join(OUT_DIR, file), html, "utf8");
     indexEntries.push({ org_id: card.org_id, name, kind: card.kind, file });
     console.log(`  ✓ ${card.org_id} (${name}) → ${file}`);
+  }
+
+  // Copy snapshot HTMLs into the bundle so relative links work on file://
+  if (existsSync(SNAPSHOT_DIR)) {
+    const snapshotOutDir = path.join(OUT_DIR, "snapshots");
+    await mkdir(snapshotOutDir, { recursive: true });
+    const files = await readdir(SNAPSHOT_DIR);
+    let copied = 0;
+    for (const f of files) {
+      if (f.endsWith(".html")) {
+        await cp(path.join(SNAPSHOT_DIR, f), path.join(snapshotOutDir, f));
+        copied++;
+      }
+    }
+    console.log(`  ✓ copied ${copied} snapshot files → dist/offline/snapshots/`);
   }
 
   // Index page
@@ -257,16 +312,30 @@ ${indexEntries
   // Sizes
   console.log(`\n=== Bundle summary ===`);
   let totalBytes = 0;
+  let fileCount = 0;
+  const snapshotOutDir = path.join(OUT_DIR, "snapshots");
+  if (existsSync(snapshotOutDir)) {
+    const snaps = (await readdir(snapshotOutDir)).filter((f) => f.endsWith(".html"));
+    fileCount += snaps.length;
+    let snapBytes = 0;
+    for (const f of snaps) {
+      snapBytes += statSync(path.join(snapshotOutDir, f)).size;
+    }
+    console.log(`  snapshots/                                       ${(snapBytes / 1024).toFixed(1)} KB (${snaps.length} files)`);
+    totalBytes += snapBytes;
+  }
   for (const file of ["index.html", ...indexEntries.map((e) => e.file)]) {
     const p = path.join(OUT_DIR, file);
     if (existsSync(p)) {
       const s = statSync(p).size;
       totalBytes += s;
+      fileCount++;
       console.log(`  ${file.padEnd(50)} ${(s / 1024).toFixed(1)} KB`);
     }
   }
-  console.log(`  total: ${(totalBytes / 1024).toFixed(1)} KB (${indexEntries.length + 1} files)`);
+  console.log(`  total: ${(totalBytes / 1024).toFixed(1)} KB (${fileCount} files)`);
   console.log(`\nDone. Copy ${path.relative(REPO_ROOT, OUT_DIR)}/ to the operator's phone.`);
+  console.log(`Tap any "📸 cached" link on a card to open the snapshot file:// — no network needed.`);
 }
 
 main().catch((err) => {
