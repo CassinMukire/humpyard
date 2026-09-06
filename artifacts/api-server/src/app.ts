@@ -7,6 +7,7 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import router from "./routes";
 import v1Router from "./routes/v1";
+import { SNAPSHOT_DIR as DEFAULT_SNAPSHOT_DIR } from "./routes/v1/snapshots.js";
 import { logger } from "./lib/logger";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -191,6 +192,52 @@ app.use("/api", router);
 // v1 routes (gated by single-user basic auth). New dossier / review-queue /
 // battle-card / monday-sync endpoints. See routes/v1/.
 app.use("/api/v1", v1Router);
+
+// =============================================================================
+// Source snapshots (Cassin v1.7 story, Wednesday scene)
+//
+// Per F2b + §11.1: every dossier fact has a cached HTML snapshot at
+// /snapshots/<sha256>.html so the operator can tap a fact and see the
+// source even when the live URL is unreachable (airplane mode, dead link,
+// operator site blocks bots).
+//
+// Path resolution (same pattern as FRONTEND_DIST):
+//   1. SNAPSHOTS_DIR env var
+//   2. <repo-root>/data/snapshots  (dev + Docker)
+//
+// The route is mounted BEFORE the SPA fallback so the SHA-scoped file
+// lookup wins over the catch-all index.html sendFile. CSP allows same-origin
+// loads; the snapshot HTML is static and contains no scripts (we strip
+// them in the fetcher if needed in the future).
+// =============================================================================
+
+const SNAPSHOTS_DIR_CANDIDATES = [
+  process.env["SNAPSHOTS_DIR"],
+  DEFAULT_SNAPSHOT_DIR,
+  path.resolve(process.cwd(), "data", "snapshots"),
+].filter((p): p is string => !!p);
+
+const SNAPSHOTS_DIR = SNAPSHOTS_DIR_CANDIDATES.find((p) => existsSync(p));
+
+if (SNAPSHOTS_DIR) {
+  logger.info({ snapshotsDir: SNAPSHOTS_DIR }, "Serving source snapshots");
+  app.use(
+    "/snapshots",
+    express.static(SNAPSHOTS_DIR, {
+      index: false,
+      maxAge: "7d",
+      setHeaders(res, filePath) {
+        // Snapshot HTMLs are immutable (named by content hash) — long cache
+        res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+      },
+    }),
+  );
+} else {
+  logger.warn(
+    { candidates: SNAPSHOTS_DIR_CANDIDATES },
+    "No snapshots dir found — run `pnpm run snapshots:fetch` to populate",
+  );
+}
 
 // SPA fallback: any non-API GET serves index.html. This is what makes the
 // React Router deep links work (/review-queue, /dossiers/pl, etc.).

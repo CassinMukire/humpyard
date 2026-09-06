@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { BriefingLayout } from "@/components/BriefingLayout";
-import { getDossier, patchPerson, linkedInSearchUrl } from "@/lib/v1-api";
+import { getDossier, patchPerson, linkedInSearchUrl, listSnapshots, snapshotIndex, type SnapshotEntry } from "@/lib/v1-api";
 import { customFetch, ApiError } from "@workspace/api-client-react";
 import {
   ArrowLeft,
@@ -88,7 +88,7 @@ function ConfidenceBadge({ confidence }: { confidence: SourcedFact["confidence"]
   );
 }
 
-function SourceLink({ url, title, retrieved_at }: { url: string; title: string; retrieved_at: string }) {
+function SourceLink({ url, title, retrieved_at, snapshotUrl, snapshotFetchedAt }: { url: string; title: string; retrieved_at: string; snapshotUrl?: string | null; snapshotFetchedAt?: string | null }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
     navigator.clipboard.writeText(url).then(() => {
@@ -106,7 +106,7 @@ function SourceLink({ url, title, retrieved_at }: { url: string; title: string; 
     );
   }
   return (
-    <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70 font-mono">
+    <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70 font-mono flex-wrap">
       <a
         href={url}
         target="_blank"
@@ -117,6 +117,19 @@ function SourceLink({ url, title, retrieved_at }: { url: string; title: string; 
         <ExternalLink className="w-2.5 h-2.5 shrink-0" />
         <span className="truncate max-w-[200px]">{title}</span>
       </a>
+      {snapshotUrl ? (
+        <a
+          href={snapshotUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 text-green-900 rounded font-mono hover:bg-green-200"
+          title={`Cached snapshot (offline-safe) — fetched ${snapshotFetchedAt ?? "?"}. Tap if the live URL is unreachable.`}
+          data-testid="snapshot-link"
+        >
+          <span aria-hidden>📸</span>
+          <span>cached</span>
+        </a>
+      ) : null}
       <button onClick={handleCopy} className="hover:text-white inline-flex items-center" title="Copy URL">
         {copied ? <Check className="w-2.5 h-2.5 text-green-500" /> : <Copy className="w-2.5 h-2.5" />}
       </button>
@@ -124,7 +137,8 @@ function SourceLink({ url, title, retrieved_at }: { url: string; title: string; 
   );
 }
 
-function SourcedBlock({ label, fact, icon }: { label: string; fact: SourcedFact; icon: React.ReactNode }) {
+function SourcedBlock({ label, fact, icon, snapshotFor }: { label: string; fact: SourcedFact; icon: React.ReactNode; snapshotFor?: (url: string) => SnapshotEntry | null }) {
+  const snap = snapshotFor?.(fact.source_url) ?? null;
   return (
     <div className="border-l-2 border-primary/40 pl-3 py-2 space-y-1.5">
       <div className="flex items-center gap-2">
@@ -135,7 +149,13 @@ function SourcedBlock({ label, fact, icon }: { label: string; fact: SourcedFact;
         <ConfidenceBadge confidence={fact.confidence} />
       </div>
       <p className="text-sm text-foreground leading-relaxed">{fact.value}</p>
-      <SourceLink url={fact.source_url} title={fact.source_url} retrieved_at={fact.retrieved_at} />
+      <SourceLink
+        url={fact.source_url}
+        title={fact.source_url}
+        retrieved_at={fact.retrieved_at}
+        snapshotUrl={snap?.snapshot_url ?? null}
+        snapshotFetchedAt={snap?.fetched_at ?? null}
+      />
     </div>
   );
 }
@@ -226,7 +246,7 @@ function YardsTable({ yards }: { yards: Yard[] }) {
   );
 }
 
-function PersonCard({ person, onChanged }: { person: Person; onChanged: () => void }) {
+function PersonCard({ person, onChanged, snapshotFor }: { person: Person; onChanged: () => void; snapshotFor?: (url: string) => SnapshotEntry | null }) {
   const [copied, setCopied] = useState(false);
   const [pasteValue, setPasteValue] = useState<string>(person.manual_linkedin_url ?? "");
   const [pasteError, setPasteError] = useState<string | null>(null);
@@ -325,18 +345,27 @@ function PersonCard({ person, onChanged }: { person: Person; onChanged: () => vo
           <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
             Topics to talk about
           </p>
-          {person.interests.map((interest: PersonInterest, idx) => (
-            <div key={`${interest.fact.source_url}-${idx}`} className="border-l-2 border-primary/40 pl-2 py-1 space-y-1">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[9px] font-mono uppercase tracking-wider border-border/60 text-muted-foreground">
-                  {interest.kind.replace(/_/g, " ")}
-                </Badge>
-                <ConfidenceBadge confidence={interest.fact.confidence} />
+          {person.interests.map((interest: PersonInterest, idx) => {
+            const iSnap = snapshotFor?.(interest.fact.source_url) ?? null;
+            return (
+              <div key={`${interest.fact.source_url}-${idx}`} className="border-l-2 border-primary/40 pl-2 py-1 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[9px] font-mono uppercase tracking-wider border-border/60 text-muted-foreground">
+                    {interest.kind.replace(/_/g, " ")}
+                  </Badge>
+                  <ConfidenceBadge confidence={interest.fact.confidence} />
+                </div>
+                <p className="text-xs text-foreground leading-relaxed">{interest.summary}</p>
+                <SourceLink
+                  url={interest.fact.source_url}
+                  title={interest.fact.source_url}
+                  retrieved_at={interest.fact.retrieved_at}
+                  snapshotUrl={iSnap?.snapshot_url ?? null}
+                  snapshotFetchedAt={iSnap?.fetched_at ?? null}
+                />
               </div>
-              <p className="text-xs text-foreground leading-relaxed">{interest.summary}</p>
-              <SourceLink url={interest.fact.source_url} title={interest.fact.source_url} retrieved_at={interest.fact.retrieved_at} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -438,10 +467,12 @@ function OrgNetwork({
   orgs,
   peopleByOrg,
   onPersonChanged,
+  snapshotFor,
 }: {
   orgs: Org[];
   peopleByOrg: { org: Org; people: Person[] }[];
   onPersonChanged: () => void;
+  snapshotFor: (url: string) => SnapshotEntry | null;
 }) {
   return (
     <Card>
@@ -484,7 +515,7 @@ function OrgNetwork({
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {people.map((p) => (
-                  <PersonCard key={p.id} person={p} onChanged={onPersonChanged} />
+                  <PersonCard key={p.id} person={p} onChanged={onPersonChanged} snapshotFor={snapshotFor} />
                 ))}
               </div>
             )}
@@ -508,6 +539,22 @@ export default function DossierDetail() {
     queryFn: () => getDossier(id),
     enabled: !!id,
   });
+
+  // Snapshot index — fetched once per page load. The api-server caches the
+  // index in memory for 60s, so this is one disk read per minute per server.
+  // Each SourceLink looks up its URL here instead of N+1 HTTP calls.
+  const snapshotsQ = useQuery({
+    queryKey: ["snapshots", "index"],
+    queryFn: () => listSnapshots(),
+    staleTime: 60_000,
+  });
+  const snapshotByUrl: Map<string, SnapshotEntry> = snapshotsQ.data
+    ? snapshotIndex(snapshotsQ.data.entries)
+    : new Map();
+
+  // Helper used by every <SourceLink> in this page. Returns the snapshot
+  // entry (with snapshot_url + fetched_at) for a given source URL, or null.
+  const snapshotFor = (url: string): SnapshotEntry | null => snapshotByUrl.get(url) ?? null;
 
   if (isLoading) {
     return (
@@ -573,7 +620,13 @@ export default function DossierDetail() {
             </div>
             <p className="text-sm text-foreground/80 mt-2 max-w-2xl">{market.verdict.value}</p>
             <div className="flex items-center gap-1.5 mt-2">
-              <SourceLink url={market.verdict.source_url} title={market.verdict.source_url} retrieved_at={market.verdict.retrieved_at} />
+              <SourceLink
+                url={market.verdict.source_url}
+                title={market.verdict.source_url}
+                retrieved_at={market.verdict.retrieved_at}
+                snapshotUrl={snapshotFor(market.verdict.source_url)?.snapshot_url ?? null}
+                snapshotFetchedAt={snapshotFor(market.verdict.source_url)?.fetched_at ?? null}
+              />
               <ConfidenceBadge confidence={market.verdict.confidence} />
             </div>
           </div>
@@ -634,7 +687,7 @@ export default function DossierDetail() {
           </CardHeader>
           <CardContent className="space-y-3">
             {FIVE_QUESTIONS.map((q) => (
-              <SourcedBlock key={q.key} label={q.label} fact={fiveQ[q.key]} icon={q.icon} />
+              <SourcedBlock key={q.key} label={q.label} fact={fiveQ[q.key]} icon={q.icon} snapshotFor={snapshotFor} />
             ))}
           </CardContent>
         </Card>
@@ -643,7 +696,7 @@ export default function DossierDetail() {
         <YardsTable yards={yards} />
 
         {/* Org + People network */}
-        <OrgNetwork orgs={data.orgs} peopleByOrg={people_by_org} onPersonChanged={() => refetch()} />
+        <OrgNetwork orgs={data.orgs} peopleByOrg={people_by_org} onPersonChanged={() => refetch()} snapshotFor={snapshotFor} />
 
         {/* Posture history + sources */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

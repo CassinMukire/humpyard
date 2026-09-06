@@ -228,3 +228,33 @@ export async function dismissSignal(id: string, reason: string): Promise<Signal>
     body: JSON.stringify({ reason }),
   });
 }
+
+// -----------------------------------------------------------------------------
+// Snapshots — F2b source caching (Cassin v1.7 story, Wednesday scene)
+//
+// The api-server caches each unique source URL to data/snapshots/<sha256>.html
+// + an index. The dossier page loads the index once and looks up the
+// snapshot URL per fact. The "📸 cached" badge next to a fact links to
+// /snapshots/<sha>.html — works offline because the SPA was loaded once
+// OR the file is in the static offline bundle.
+// -----------------------------------------------------------------------------
+
+export interface SnapshotEntry {
+  url: string;
+  sha256: string;
+  fetched_at: string;
+  size_bytes: number;
+  snapshot_url: string; // /snapshots/<sha>.html
+}
+
+export async function listSnapshots(): Promise<{ entries: SnapshotEntry[]; count: number }> {
+  return customFetch<{ entries: SnapshotEntry[]; count: number }>("/api/v1/snapshots");
+}
+
+/**
+ * Build a quick lookup Map<url, SnapshotEntry> from the full list. Used by
+ * the dossier page to render the "📸 cached" badge per fact.
+ */
+export function snapshotIndex(entries: SnapshotEntry[]): Map<string, SnapshotEntry> {
+  return new Map(entries.map((e) => [e.url, e]));
+}
