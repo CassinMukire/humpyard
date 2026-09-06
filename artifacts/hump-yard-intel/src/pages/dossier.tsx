@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { BriefingLayout } from "@/components/BriefingLayout";
-import { getDossier, patchPerson, linkedInSearchUrl, listSnapshots, snapshotIndex, type SnapshotEntry } from "@/lib/v1-api";
+import { getDossier, patchPerson, linkedInSearchUrl, listSnapshots, snapshotIndex, addReviewQueueItem, type SnapshotEntry } from "@/lib/v1-api";
 import { customFetch, ApiError } from "@workspace/api-client-react";
 import {
   ArrowLeft,
@@ -484,7 +484,11 @@ function OrgNetwork({
             {orgs.length} orgs · {peopleByOrg.reduce((sum, x) => sum + x.people.length, 0)} people
           </Badge>
         </CardTitle>
-        <CardDescription>Authorities, competitors, and consultants — with the people who matter.</CardDescription>
+        <CardDescription>
+          Authorities, competitors, and consultants — with the people who matter.{" "}
+          <span className="text-amber-500">Fair contact note →</span> use the
+          inline form below each org to add a contact as <code className="text-[10px]">[I]</code> in the review queue (FP2 scene, v1.7).
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {peopleByOrg.map(({ org, people }) => (
@@ -519,10 +523,119 @@ function OrgNetwork({
                 ))}
               </div>
             )}
+            {/* FP2 / fair-week: inline form to add a contact note as [I] in the review queue.
+                Per Cassin's v1.7 story, Wednesday FP2 demo: "new contact noted → lands in
+                review queue as [I], NOT directly in register as truth." The form posts
+                to POST /api/v1/review-queue and Cassin promotes it later on the train home. */}
+            <ContactNoteForm org={org} onLogged={onPersonChanged} />
           </div>
         ))}
       </CardContent>
     </Card>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Contact-note form (FP2 / v1.7 fair contact note flow)
+// -----------------------------------------------------------------------------
+//
+// Per Cassin's v1.7 story, Wednesday FP2 demo: "new contact noted → lands in
+// review queue as [I], NOT directly in register as truth." This form lets
+// Cassin type a name + role on the floor, hit "Add to review queue", and
+// move on. They promote it later (review-queue page) once they have a
+// LinkedIn URL or a primary source.
+
+function ContactNoteForm({ org, onLogged }: { org: Org; onLogged: () => void }) {
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("");
+  const [context, setContext] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!name.trim()) {
+      setErr("name required");
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    setDone(null);
+    try {
+      const snippet = context.trim()
+        ? `${name.trim()} — ${role.trim() || "role unknown"}. ${context.trim()}.`
+        : `${name.trim()} — ${role.trim() || "role unknown"}.`;
+      await addReviewQueueItem({
+        kind: "person",
+        proposed: {
+          name: name.trim(),
+          role: role.trim() || null,
+          org_id: org.id,
+        },
+        market_id: org.market_ids?.[0] ?? null,
+        raw_snippet: snippet,
+        source_url: `internal://fp2-fair-note/${org.id}`,
+      });
+      setDone(`queued: ${name.trim()}`);
+      setName("");
+      setRole("");
+      setContext("");
+      // Defer refetch so the success message is visible
+      setTimeout(() => {
+        setDone(null);
+        onLogged();
+      }, 1500);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="border border-dashed border-amber-600/40 rounded p-2 bg-amber-50/5 space-y-1.5">
+      <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-amber-500">
+        <span>📝 Fair contact note → review queue [I]</span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Name (e.g. 'Seeßle')"
+          className="px-2 py-1 text-xs border border-slate-300 rounded bg-white text-slate-900"
+          data-testid={`contact-note-name-${org.id}`}
+        />
+        <input
+          type="text"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          placeholder="Role (e.g. 'HVLE track engineer')"
+          className="px-2 py-1 text-xs border border-slate-300 rounded bg-white text-slate-900"
+        />
+        <input
+          type="text"
+          value={context}
+          onChange={(e) => setContext(e.target.value)}
+          placeholder="Context (optional, 30-sec note)"
+          className="px-2 py-1 text-xs border border-slate-300 rounded bg-white text-slate-900"
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={submit}
+          disabled={busy || !name.trim()}
+          className="px-2 py-1 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50"
+        >
+          {busy ? "Queuing…" : "Add to review queue"}
+        </button>
+        {done && <span className="text-xs text-green-600">✓ {done}</span>}
+        {err && <span className="text-xs text-red-600">err: {err}</span>}
+        <span className="text-[10px] text-muted-foreground ml-auto">
+          (Promote later on /review-queue when you have a LinkedIn URL or source)
+        </span>
+      </div>
+    </div>
   );
 }
 

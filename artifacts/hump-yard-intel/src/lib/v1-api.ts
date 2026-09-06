@@ -258,3 +258,29 @@ export async function listSnapshots(): Promise<{ entries: SnapshotEntry[]; count
 export function snapshotIndex(entries: SnapshotEntry[]): Map<string, SnapshotEntry> {
   return new Map(entries.map((e) => [e.url, e]));
 }
+
+// -----------------------------------------------------------------------------
+// Review queue (FP2 / v1.7 fair contact note flow)
+// -----------------------------------------------------------------------------
+//
+// Per Cassin's v1.7 story, Wednesday FP2 demo: "new contact noted → lands in
+// review queue as [I], NOT directly in register as truth." The dossier page
+// has an inline form per org that POSTs to /api/v1/review-queue with
+// kind=person. Cassin promotes the item later (review-queue page) once they
+// have a LinkedIn URL or a primary source.
+// -----------------------------------------------------------------------------
+
+export interface AddReviewQueueItem {
+  kind: "person" | "yard" | "org" | "tender" | "source_link";
+  proposed: Record<string, unknown>;
+  market_id?: string;
+  raw_snippet?: string;
+  source_url?: string;
+}
+
+export async function addReviewQueueItem(item: AddReviewQueueItem): Promise<{ ok: true; id: string }> {
+  return customFetch<{ ok: true; id: string }>("/api/v1/review-queue", {
+    method: "POST",
+    body: JSON.stringify(item),
+  });
+}
