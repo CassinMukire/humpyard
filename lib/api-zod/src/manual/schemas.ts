@@ -449,7 +449,13 @@ export const ReviewQueueItemSchema = z.object({
   proposed: z.record(z.string(), z.unknown()),
   // Raw source snippet
   raw_snippet: z.string(),
-  source_url: z.string().url(),
+  // Source URL — accepts real http(s) URLs AND internal:// markers.
+  // Per the v1.6 brief, internal:// is for facts that need a primary
+  // source before they can render (status=unknown in the queue).
+  source_url: z.string().refine(
+    (s) => /^https?:\/\//i.test(s) || s.startsWith("internal://"),
+    { message: "source_url must be a real http(s) URL or an internal:// marker" },
+  ),
   retrieved_at: z.string(),
   market_id: z.string().nullable(),
   // Queue age: anything older than 14 days auto-archives (recoverable)

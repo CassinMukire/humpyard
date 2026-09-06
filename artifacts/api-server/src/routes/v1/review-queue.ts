@@ -19,6 +19,7 @@
 
 import { Router } from "express";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 import {
   addToReviewQueue,
   listReviewQueue,
@@ -50,20 +51,40 @@ router.get("/review-queue", async (req, res, next) => {
 });
 
 // POST /api/v1/review-queue — enqueue a new item
+const PostBody = z.object({
+  kind: z.enum(["yard", "org", "person", "tender", "five_questions", "source_link"]),
+  proposed: z.record(z.string(), z.unknown()),
+  market_id: z.string().nullable().optional(),
+  raw_snippet: z.string().optional(),
+  source_url: z.string().optional(),
+  retrieved_at: z.string().optional(),
+  rejection_hash: z.string().optional(),
+});
+
 router.post("/review-queue", async (req, res, next) => {
   try {
-    const body = req.body as Record<string, unknown> | undefined;
-    if (!body) {
-      res.status(400).json({ error: "Body required" });
+    const parsed = PostBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid body", issues: parsed.error.issues });
       return;
     }
-    const hash = body["rejection_hash"] ? String(body["rejection_hash"]) : null;
-    if (hash && (await isRejectedContent(hash))) {
+    const body = parsed.data;
+    if (body.rejection_hash && (await isRejectedContent(body.rejection_hash))) {
       res.status(409).json({ error: "Content already rejected; not re-queued" });
       return;
     }
-    const item = await addToReviewQueue(body as never);
-    res.status(201).json({ item });
+    // Defaults for fields the client may omit (FP2 / fair contact note flow
+    // sends only the minimum: kind, proposed, source_url).
+    const item = {
+      kind: body.kind,
+      proposed: body.proposed,
+      raw_snippet: body.raw_snippet ?? "",
+      source_url: body.source_url ?? `internal://queue-item/${randomUUID()}`,
+      retrieved_at: body.retrieved_at ?? new Date().toISOString(),
+      market_id: body.market_id ?? null,
+    };
+    const saved = await addToReviewQueue(item);
+    res.status(201).json({ item: saved });
   } catch (err) {
     next(err);
   }
