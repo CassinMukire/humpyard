@@ -28,8 +28,11 @@ import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// snapshots/ lives at the repo root: <repo>/data/snapshots/
-const SNAPSHOT_DIR = path.resolve(__dirname, "..", "..", "..", "..", "data", "snapshots");
+// snapshots/ lives at <repo>/data/snapshots/. From this file at
+// <repo>/dist/routes/v1/snapshots.js the relative path is three `..`s.
+// Falls back to <repo>/data/snapshots and cwd-relative data/snapshots
+// below in loadIndex() so the route works in dev and prod.
+const SNAPSHOT_DIR = path.resolve(__dirname, "..", "..", "..", "data", "snapshots");
 const INDEX_PATH = path.join(SNAPSHOT_DIR, "index.json");
 
 const router = Router();
