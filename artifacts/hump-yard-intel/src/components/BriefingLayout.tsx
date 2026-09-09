@@ -10,7 +10,6 @@
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { getSystemInfo } from "@/lib/v1-api";
-import { LogoutButton } from "@/components/LogoutButton";
 import { cn } from "@/lib/utils";
 import { FileText, Inbox, Swords, Radar, Sparkles } from "lucide-react";
 
@@ -86,7 +85,7 @@ export function BriefingLayout({ children }: { children: React.ReactNode }) {
             </NavLink>
           </nav>
 
-          {/* Status indicator + mode badge + logout */}
+          {/* Status indicator + mode badge */}
           <div className="flex items-center gap-3 text-xs font-mono shrink-0">
             {info?.demo_mode && (
               <span
@@ -109,7 +108,6 @@ export function BriefingLayout({ children }: { children: React.ReactNode }) {
               </span>
               <span className="hidden md:inline">Online</span>
             </span>
-            <LogoutButton variant="navbar" />
           </div>
         </div>
       </header>
