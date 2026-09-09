@@ -1,14 +1,17 @@
 // =============================================================================
-// BriefingLayout — shared top nav + system status for all v1 pages.
-// Mirrors the home page's header style so the v1 pages feel like part of
-// the same product, not a bolted-on admin tool.
+// BriefingLayout — shared top nav + system status for ALL v1 pages.
+// This is the single source of truth for the platform's header. Every page
+// (except /login) should wrap its content in this component so the nav
+// stays consistent across the product. The home page used to have its own
+// header; that's now gone (the Tabs live in the page body, the header is
+// here). Hitank (2026-09-09): "navbar need same across the platfrom do".
 // =============================================================================
 
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { getSystemInfo } from "@/lib/v1-api";
 import { cn } from "@/lib/utils";
-import { Crosshair, FileText, Inbox, Swords, Sparkles } from "lucide-react";
+import { Crosshair, FileText, Inbox, Swords, Radar, Sparkles } from "lucide-react";
 
 interface NavLinkProps {
   href: string;
@@ -48,22 +51,22 @@ export function BriefingLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-primary/30">
-      {/* Header */}
+      {/* Header — single source of truth, used on every page */}
       <header className="border-b border-border bg-card z-10 sticky top-0">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          {/* Logo + app name */}
-          <Link href="/" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+          {/* Logo + app name (always links home) */}
+          <Link href="/" className="flex items-center gap-4 hover:opacity-80 transition-opacity shrink-0">
             <img src="/decel-logo.png" alt="DECEL" className="h-8 w-auto object-contain" />
             <div className="h-5 w-px bg-border" />
             <span
-              className="text-sm uppercase tracking-[0.2em] text-muted-foreground"
+              className="text-sm uppercase tracking-[0.2em] text-muted-foreground hidden sm:inline"
               style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600 }}
             >
               Hump Yard <span className="text-primary">Intel</span>
             </span>
           </Link>
 
-          {/* Nav */}
+          {/* Nav — 5 links, same order everywhere */}
           <nav className="flex items-center gap-2">
             <NavLink href="/dossiers" active={isActive("/dossiers")} icon={<FileText className="w-3.5 h-3.5" />}>
               Dossiers
@@ -74,19 +77,21 @@ export function BriefingLayout({ children }: { children: React.ReactNode }) {
             <NavLink href="/battle-cards" active={isActive("/battle-cards")} icon={<Swords className="w-3.5 h-3.5" />}>
               Battle Cards
             </NavLink>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider px-3 py-1.5 border border-border text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
-            >
-              <Crosshair className="w-3.5 h-3.5" />
+            <NavLink href="/signals" active={isActive("/signals")} icon={<Radar className="w-3.5 h-3.5" />}>
+              Radar
+            </NavLink>
+            <NavLink href="/" active={location === "/"} icon={<Crosshair className="w-3.5 h-3.5" />}>
               Scanner
-            </Link>
+            </NavLink>
           </nav>
 
-          {/* Status indicator + demo badge */}
-          <div className="flex items-center gap-3 text-xs font-mono">
+          {/* Status indicator + mode badge */}
+          <div className="flex items-center gap-3 text-xs font-mono shrink-0">
             {info?.demo_mode && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 border border-amber-600/50 text-amber-500 bg-amber-600/10 uppercase tracking-wider text-[10px]">
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 border border-amber-600/50 text-amber-500 bg-amber-600/10 uppercase tracking-wider text-[10px]"
+                data-testid="navbar-demo-badge"
+              >
                 <Sparkles className="w-3 h-3" />
                 Demo
               </span>
@@ -101,7 +106,7 @@ export function BriefingLayout({ children }: { children: React.ReactNode }) {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
               </span>
-              Online
+              <span className="hidden md:inline">Online</span>
             </span>
           </div>
         </div>

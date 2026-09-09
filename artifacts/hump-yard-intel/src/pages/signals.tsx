@@ -19,6 +19,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { listSignals, promoteSignal, dismissSignal, type Signal, type SignalStatus } from "@/lib/v1-api";
+import { BriefingLayout } from "@/components/BriefingLayout";
 
 const STATUS_LABEL: Record<SignalStatus, string> = {
   new: "🆕 new",
@@ -65,14 +66,15 @@ export default function SignalsPage() {
   });
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold">Radar</h1>
-        <p className="text-sm text-slate-600 mt-1">
-          Post-fair radar (Phase 7). Each item comes from a live feed (TED EU,
-          CUPT/FEnIKS, ERADIS, UTK, SŽ zakázky, Väylävirasto) or from EXA /
-          manual paste. Promote a signal to a Play, dismiss it, or act on it.
-        </p>
+    <BriefingLayout>
+      <div className="max-w-5xl mx-auto">
+        <header className="mb-6">
+          <h1 className="text-2xl font-semibold">Radar</h1>
+          <p className="text-sm text-slate-600 mt-1">
+            Post-fair radar (Phase 7). Each item comes from a live feed (TED EU,
+            CUPT/FEnIKS, ERADIS, UTK, SŽ zakázky, Väylävirasto) or from EXA /
+            manual paste. Promote a signal to a Play, dismiss it, or act on it.
+          </p>
       </header>
 
       <div className="flex gap-2 mb-4">
@@ -96,13 +98,14 @@ export default function SignalsPage() {
         <div className="border border-dashed border-slate-300 rounded p-8 text-center text-slate-500">
           <p className="font-medium">No signals yet.</p>
           <p className="text-sm mt-2">
-            Run <code className="bg-slate-100 px-1 rounded">pnpm run radar:fetch</code> on
-            the VPS to ingest a feed. Or paste a signal manually via{" "}
-            <code className="bg-slate-100 px-1 rounded">POST /api/v1/signals</code>.
+            The radar runs on a cron — first sweep is automatic. To fetch
+            right now, run{" "}
+            <code className="bg-slate-100 px-1 rounded">pnpm run radar:fetch</code>{" "}
+            on the VPS. Live data only, no fake signals.
           </p>
           <p className="text-xs mt-3 text-slate-400">
-            Radar MVP target: 2026-10-15 (≥1 real feed item promoted through
-            the queue into a Monday Play).
+            Feeds: EXA (hump-yard multilingual queries) + TED EU (when
+            TED_EU_API_KEY is set). Items appear here as they are ingested.
           </p>
         </div>
       )}
@@ -119,7 +122,8 @@ export default function SignalsPage() {
           />
         ))}
       </ul>
-    </div>
+      </div>
+    </BriefingLayout>
   );
 }
 
