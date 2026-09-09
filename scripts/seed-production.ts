@@ -65,7 +65,18 @@ const FORCE = process.argv.includes("--force");
 async function isAlreadySeeded(): Promise<boolean> {
   const markets = await listMarkets();
   const ids = new Set(markets.map((m) => m.id));
-  return BASELINE_MARKET_IDS.every((id) => ids.has(id));
+  if (!BASELINE_MARKET_IDS.every((id) => ids.has(id))) return false;
+  // Also check the baseline review-queue items are present (non-archived).
+  // Without this, the second of two back-to-back seeds would re-insert the
+  // same 2 review-queue rows and produce duplicates. The two baseline items
+  // are: Idzikowice (yard) and PKP PLK Hump Yard Code (source_link).
+  const { listReviewQueue } = await import("../artifacts/api-server/src/lib/store-factory.js");
+  const rq = await listReviewQueue({ includeArchived: false });
+  const rqNames = new Set(rq.map((r) => `${r.kind}:${(r.proposed as { name?: string })?.name ?? ""}`));
+  return (
+    rqNames.has("yard:Idzikowice (Poland) \u2014 needs primary source") &&
+    rqNames.has("source_link:PKP PLK Hump Yard Code for Design")
+  );
 }
 
 async function main(): Promise<void> {
