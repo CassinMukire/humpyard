@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
+import { useLocation } from "wouter";
+import { useMutation } from "@tanstack/react-query";
 import type { CountryResult } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +13,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { exportToCsv } from "@/lib/csv";
+import { saveRadarToDossier } from "@/lib/v1-api";
 import { KeyContactsPanel } from "./KeyContactsPanel";
 import { getMarketOpportunity, PRIORITY_CONFIG, formatMSEK } from "@/lib/marketData";
 import {
@@ -24,6 +27,9 @@ import {
   TrendingUp,
   Building2,
   Lock,
+  Save,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 
 const TIER_DEFINITIONS: Record<string, { label: string; description: string; action: string }> = {
@@ -80,6 +86,34 @@ function TierTooltip({ tier }: { tier: string }) {
 }
 
 export function ResultCard({ result }: ResultCardProps) {
+  // End-to-end "Save to dossier" flow (Hitank 2026-09-09).
+  // Calls POST /api/v1/radar/save which creates a real Signal in the
+  // signals table + a real Play in the plays table. No mock data.
+  // The operator can then push the play to Monday from /signals.
+  const [, navigate] = useLocation();
+  const [saved, setSaved] = useState<{ signal_id: string; play_id: string; market_id: string | null; dossier_url: string | null } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const saveMut = useMutation({
+    mutationFn: () =>
+      saveRadarToDossier({
+        country: result.country,
+        summary: result.summary,
+        url: result.sources?.[0]?.url ?? result.procurementPortal ?? undefined,
+        source_url: result.sources?.[0]?.url ?? undefined,
+        tier: result.tier as "A" | "B" | "C" | "D",
+        yards: result.yards,
+        operator: result.operator,
+      }),
+    onSuccess: (data) => {
+      setSaved({ signal_id: data.signal_id, play_id: data.play_id, market_id: data.market_id, dossier_url: data.dossier_url });
+      setError(null);
+    },
+    onError: (e) => {
+      setError(e instanceof Error ? e.message : String(e));
+      setSaved(null);
+    },
+  });
   const getVerdictColor = (verdict: string) => {
     switch (verdict) {
       case "Yes": return "bg-green-600 hover:bg-green-600 text-white";
@@ -147,7 +181,48 @@ export function ResultCard({ result }: ResultCardProps) {
           <Download className="w-3.5 h-3.5 mr-2" />
           Export CSV
         </Button>
+        {/* Save to dossier — Hitank (2026-09-09): the radar's findings
+            should land in the dossier. One click creates a real Signal
+            + Play, then the operator can promote to Monday. No mock. */}
+        {saved ? (
+          <Button
+            variant="default"
+            size="sm"
+            className="rounded-none bg-green-700 hover:bg-green-600 text-white shrink-0 font-mono text-xs uppercase"
+            onClick={() => saved.dossier_url && navigate(saved.dossier_url)}
+            data-testid="result-card-open-dossier"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5 mr-2" />
+            Open dossier
+          </Button>
+        ) : (
+          <Button
+            variant="default"
+            size="sm"
+            disabled={saveMut.isPending}
+            className="rounded-none bg-primary text-primary-foreground hover:bg-primary/90 shrink-0 font-mono text-xs uppercase"
+            onClick={() => saveMut.mutate()}
+            data-testid="result-card-save"
+          >
+            {saveMut.isPending ? (
+              <><Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> Saving…</>
+            ) : (
+              <><Save className="w-3.5 h-3.5 mr-2" /> Save to dossier</>
+            )}
+          </Button>
+        )}
       </CardHeader>
+
+      {error ? (
+        <div className="bg-red-950/40 border-b border-red-900 px-6 py-2 text-xs text-red-200 font-mono">
+          Save failed: {error}. Try again — the radar data is not lost, the next click creates a fresh signal.
+        </div>
+      ) : null}
+      {saved && !saved.market_id ? (
+        <div className="bg-amber-950/40 border-b border-amber-900 px-6 py-2 text-xs text-amber-200 font-mono">
+          Saved to radar queue (no matching market yet — {saved.signal_id}). Cassin curates market assignment.
+        </div>
+      ) : null}
 
       <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Left Column: Summary & Infrastructure */}

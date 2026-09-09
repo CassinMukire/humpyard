@@ -230,6 +230,49 @@ export async function dismissSignal(id: string, reason: string): Promise<Signal>
 }
 
 // -----------------------------------------------------------------------------
+// Radar save (end-to-end: Scanner / Global Radar → dossier + Play)
+//
+// Hitank (2026-09-09): "what come here from any from means from target
+// or form global radar then its go to dossiers proply structurely ...
+// and 2ndly its all goes to monday also". This client function hits the
+// POST /api/v1/radar/save endpoint which (1) creates a real Signal in
+// the signals table, (2) creates a real Play in the plays table linked
+// to that signal, (3) returns the dossier URL so the UI can navigate
+// the operator straight to the affected market. The push to Monday
+// happens in a follow-up step (the operator reviews the play, then
+// promotes it). No mock data anywhere — everything is persisted.
+// -----------------------------------------------------------------------------
+
+export interface RadarSaveInput {
+  country: string;
+  summary: string;
+  url?: string;
+  source_url?: string;
+  posted_at?: string;
+  tier?: "A" | "B" | "C" | "D";
+  yards?: string[];
+  operator?: string | null;
+}
+
+export interface RadarSaveResult {
+  ok: true;
+  signal_id: string;
+  play_id: string;
+  market_id: string | null;
+  dossier_url: string | null;
+  next_action: string;
+}
+
+export async function saveRadarToDossier(
+  input: RadarSaveInput,
+): Promise<RadarSaveResult> {
+  return customFetch<RadarSaveResult>("/api/v1/radar/save", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+// -----------------------------------------------------------------------------
 // Snapshots — F2b source caching (Cassin v1.7 story, Wednesday scene)
 //
 // The api-server caches each unique source URL to data/snapshots/<sha256>.html
