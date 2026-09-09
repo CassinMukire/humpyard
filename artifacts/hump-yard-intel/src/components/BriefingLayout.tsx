@@ -10,6 +10,7 @@
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { getSystemInfo } from "@/lib/v1-api";
+import { LogoutButton } from "@/components/LogoutButton";
 import { cn } from "@/lib/utils";
 import { FileText, Inbox, Swords, Radar, Sparkles } from "lucide-react";
 
@@ -108,6 +109,10 @@ export function BriefingLayout({ children }: { children: React.ReactNode }) {
               </span>
               <span className="hidden md:inline">Online</span>
             </span>
+            {/* Hitank 2026-09-09: "in scanner and on navbar logout section add".
+                The pill is always visible on every page so the operator can
+                end the session without hunting for a footer. */}
+            <LogoutButton variant="navbar" />
           </div>
         </div>
       </header>
