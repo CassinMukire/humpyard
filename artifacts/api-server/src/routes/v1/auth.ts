@@ -184,7 +184,16 @@ router.post("/logout", requireAuth, async (req, res, next) => {
         userAgent: req.headers["user-agent"] ?? null,
       });
     }
-    res.clearCookie("decel_session", { path: "/" });
+    // clearCookie must match the original res.cookie attributes (path,
+    // httpOnly, sameSite, secure) — otherwise the browser will keep the
+    // old value, especially the Secure+HttpOnly cookie set in production.
+    // See login handler above for the matching res.cookie call.
+    res.clearCookie("decel_session", {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env["NODE_ENV"] === "production",
+    });
     res.status(204).end();
   } catch (err) {
     next(err);
