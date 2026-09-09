@@ -808,6 +808,54 @@ export default function DossierDetail() {
         {/* Yards */}
         <YardsTable yards={yards} />
 
+        {/* Active plays — radar + manual actions.
+            The /api/v1/radar/save endpoint creates these with origin=engine.
+            The operator then promotes them to Monday via the /api/v1/monday
+            routes. Each play shows its origin so the operator can tell which
+            came from the radar vs which were hand-curated. */}
+        {data.plays && data.plays.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Target className="w-4 h-4 text-primary" />
+                Active plays
+                <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 rounded-none border-border text-muted-foreground">
+                  {data.plays.length}
+                </Badge>
+              </CardTitle>
+              <CardDescription>
+                Radar findings + manual actions. Promote a play to Monday from /signals.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {data.plays.map((p) => (
+                  <li key={p.id} className="flex items-start gap-3 border-l-2 border-primary/40 pl-3 py-2">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-[9px] font-mono px-1.5 py-0 rounded-none uppercase",
+                        p.origin === "engine"
+                          ? "border-amber-500/50 text-amber-500 bg-amber-500/10"
+                          : "border-blue-500/50 text-blue-400 bg-blue-500/10",
+                      )}
+                    >
+                      {p.origin}
+                    </Badge>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground leading-relaxed">{p.action}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
+                        {p.status} · {p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}
+                        {p.market_id ? ` · market ${p.market_id}` : ""}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        ) : null}
+
         {/* Org + People network */}
         <OrgNetwork orgs={data.orgs} peopleByOrg={people_by_org} onPersonChanged={() => refetch()} snapshotFor={snapshotFor} />
 
