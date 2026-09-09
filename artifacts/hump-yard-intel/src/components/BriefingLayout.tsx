@@ -10,8 +10,9 @@
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { getSystemInfo } from "@/lib/v1-api";
+import { LogoutButton } from "@/components/LogoutButton";
 import { cn } from "@/lib/utils";
-import { Crosshair, FileText, Inbox, Swords, Radar, Sparkles } from "lucide-react";
+import { FileText, Inbox, Swords, Radar, Sparkles } from "lucide-react";
 
 interface NavLinkProps {
   href: string;
@@ -66,7 +67,10 @@ export function BriefingLayout({ children }: { children: React.ReactNode }) {
             </span>
           </Link>
 
-          {/* Nav — 5 links, same order everywhere */}
+          {/* Nav — 4 links, same order everywhere. The home ("Scanner") is
+              reachable via the DECEL logo on the left; "Radar" has the
+              Target Scanner inside its tabs, so a separate "Scanner" nav
+              item is redundant (Hitank 2026-09-09). */}
           <nav className="flex items-center gap-2">
             <NavLink href="/dossiers" active={isActive("/dossiers")} icon={<FileText className="w-3.5 h-3.5" />}>
               Dossiers
@@ -77,15 +81,12 @@ export function BriefingLayout({ children }: { children: React.ReactNode }) {
             <NavLink href="/battle-cards" active={isActive("/battle-cards")} icon={<Swords className="w-3.5 h-3.5" />}>
               Battle Cards
             </NavLink>
-            <NavLink href="/signals" active={isActive("/signals")} icon={<Radar className="w-3.5 h-3.5" />}>
+            <NavLink href="/radar" active={isActive("/radar")} icon={<Radar className="w-3.5 h-3.5" />}>
               Radar
-            </NavLink>
-            <NavLink href="/" active={location === "/"} icon={<Crosshair className="w-3.5 h-3.5" />}>
-              Scanner
             </NavLink>
           </nav>
 
-          {/* Status indicator + mode badge */}
+          {/* Status indicator + mode badge + logout */}
           <div className="flex items-center gap-3 text-xs font-mono shrink-0">
             {info?.demo_mode && (
               <span
@@ -108,6 +109,7 @@ export function BriefingLayout({ children }: { children: React.ReactNode }) {
               </span>
               <span className="hidden md:inline">Online</span>
             </span>
+            <LogoutButton variant="navbar" />
           </div>
         </div>
       </header>

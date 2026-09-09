@@ -1,8 +1,9 @@
 import React from "react";
 import { Link } from "wouter";
 import { BriefingLayout } from "@/components/BriefingLayout";
+import { LogoutButton } from "@/components/LogoutButton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Crosshair, FileText, Inbox, Swords, Radar as RadarIcon, ArrowRight } from "lucide-react";
+import { FileText, Inbox, Swords, Radar as RadarIcon, ArrowRight } from "lucide-react";
 
 const QUICK_LINKS = [
   {
@@ -76,6 +77,13 @@ export default function Home() {
           Eval gate: <span className="text-primary">22/22 GREEN</span> · All 4 phases shipped ·
           Radar: 48 real EXA signals live · 15 source snapshots cached
         </div>
+
+        {/* Hitank 2026-09-09: "in scanner ... logout section add". The
+            home ("Scanner") page has its own logout section so the
+            operator can end the session from the dashboard without
+            having to dig for the navbar pill. The navbar Logout is
+            the always-available version. */}
+        <LogoutButton variant="page" />
       </div>
     </BriefingLayout>
   );
