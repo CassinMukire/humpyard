@@ -20,7 +20,6 @@ import React from "react";
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { BriefingLayout } from "@/components/BriefingLayout";
-import { LogoutButton } from "@/components/LogoutButton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,8 +27,6 @@ import {
   listDossiers,
   listSnapshots,
   getSystemInfo,
-  snapshotIndex,
-  type SnapshotEntry,
   type Signal,
 } from "@/lib/v1-api";
 import {
@@ -39,7 +36,6 @@ import {
   Radar as RadarIcon,
   ArrowRight,
   Activity,
-  Database,
   Camera,
   Globe2,
   CheckCircle2,
@@ -293,7 +289,11 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* ---- 5. Footer: eval gate summary + logout ------------- */}
+        {/* ---- 5. Footer: eval gate summary + session hint ------- */}
+        {/* Hitank 2026-09-09: "logout remove from fotter and remain
+            on navbar". The page-variant LogoutButton lived here. It's
+            gone. The navbar pill (BriefingLayout) is the only logout
+            surface now — single, consistent, available on every page. */}
         <div className="text-[11px] text-muted-foreground font-mono border-t border-border pt-4 flex flex-wrap items-center gap-3">
           <span>
             Eval gate: <span className="text-primary">22/22 GREEN</span> · All 4 phases shipped ·
@@ -304,10 +304,13 @@ export default function Home() {
               Demo mode
             </Badge>
           )}
+          <span className="ml-auto">
+            Logged in as <span className="text-primary">cassin</span> ·{" "}
+            <Link href="#" onClick={(e) => { e.preventDefault(); document.querySelector<HTMLElement>('[data-testid="logout-button-navbar"]')?.click(); }} className="text-primary hover:underline">
+              logout →
+            </Link>
+          </span>
         </div>
-
-        {/* ---- 6. Logout (page variant) -------------------------- */}
-        <LogoutButton variant="page" />
       </div>
     </BriefingLayout>
   );

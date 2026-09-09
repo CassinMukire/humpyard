@@ -62,15 +62,17 @@ function safeEqual(a: string, b: string): boolean {
   return mismatch === 0;
 }
 
-function extractBearerOrCookieToken(req: { headers: { authorization?: string; cookie?: string } }): string | null {
+function extractBearerToken(req: { headers: { authorization?: string } }): string | null {
   const auth = req.headers.authorization;
   if (auth && auth.startsWith("Bearer ")) return auth.slice(7).trim();
+  return null;
+}
+
+function extractCookieToken(req: { headers: { cookie?: string } }): string | null {
   const cookieHeader = req.headers.cookie;
-  if (cookieHeader) {
-    const cookies = cookieHeader.split(";").map((c) => c.trim());
-    for (const c of cookies) {
-      if (c.startsWith("decel_session=")) return c.slice("decel_session=".length);
-    }
+  if (!cookieHeader) return null;
+  for (const c of cookieHeader.split(";").map((c) => c.trim())) {
+    if (c.startsWith("decel_session=")) return c.slice("decel_session=".length);
   }
   return null;
 }
@@ -95,20 +97,37 @@ export const requireAuth: RequestHandler = async (req, res, next) => {
     return;
   }
 
-  // 2. Check for bearer/cookie token. All tokens are real DB sessions —
-  //    there is no in-memory token path. If the session row is missing,
-  //    the token is rejected.
-  const token = extractBearerOrCookieToken(req);
-  if (token) {
-    const session = await getSession(token);
-    if (session) {
-      // Sliding window — touch the session
-      await touchSession(token);
-      setAuthOnReq(req, session.userId, session.expiresAt);
-      next();
-      return;
-    }
-    // Token invalid or expired. Fall through to basic auth below.
+  // 2. Try Bearer first, then cookie. Either is sufficient. This is the
+  //    v1.1.3 fix for the "login every time" symptom: a stale localStorage
+  //    Bearer (e.g. another tab logged out, or a server-side session
+  //    cleanup) used to mask a still-valid HttpOnly cookie because the
+  //    old code only tried the first credential it found. Now we try
+  //    BOTH and accept if either is valid.
+  const bearer = extractBearerToken(req);
+  const cookieToken = extractCookieToken(req);
+
+  let session: Awaited<ReturnType<typeof getSession>> = null;
+  let usedToken: string | null = null;
+
+  if (bearer) {
+    session = await getSession(bearer);
+    if (session) usedToken = bearer;
+  }
+  if (!session && cookieToken) {
+    session = await getSession(cookieToken);
+    if (session) usedToken = cookieToken;
+  }
+
+  if (session && usedToken) {
+    // Sliding window — touch the session
+    await touchSession(usedToken);
+    setAuthOnReq(req, session.userId, session.expiresAt);
+    next();
+    return;
+  }
+
+  // If we tried at least one credential and neither matched, log it.
+  if (bearer || cookieToken) {
     await logAuthEvent({
       event: "token_invalid",
       user: "anonymous",
