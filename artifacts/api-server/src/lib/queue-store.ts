@@ -465,6 +465,34 @@ export async function createPlay(p: Omit<Play, "id" | "created_at">): Promise<Pl
   return { ...p, id, created_at: created.toISOString() };
 }
 
+export async function updatePlay(
+  id: string,
+  patch: Partial<Pick<Play, "owner" | "due" | "status" | "monday_item_id" | "action">>,
+): Promise<Play | undefined> {
+  // The Drizzle `plays.due` column is `timestamp`, but the wire-format
+  // Play.due is ISO string. Coerce here so the call site can pass a
+  // plain string and we don't have to repeat the cast in every route.
+  const dbPatch: Partial<{
+    owner: string | null;
+    due: Date | null;
+    status: Play["status"];
+    monday_item_id: string | null;
+    action: string;
+  }> = {};
+  if (patch.owner !== undefined) dbPatch.owner = patch.owner;
+  if (patch.due !== undefined) {
+    dbPatch.due = patch.due ? new Date(patch.due) : null;
+  }
+  if (patch.status !== undefined) dbPatch.status = patch.status;
+  if (patch.monday_item_id !== undefined) dbPatch.monday_item_id = patch.monday_item_id;
+  if (patch.action !== undefined) dbPatch.action = patch.action;
+  await db.update(schema.plays).set(dbPatch).where(eq(schema.plays.id, id));
+  // Return the row (for the API response)
+  const rows = await db.select().from(schema.plays).where(eq(schema.plays.id, id)).limit(1);
+  if (!rows[0]) return undefined;
+  return rowToPlay(rows[0]);
+}
+
 export async function listPlaysByMarket(marketId: string): Promise<Play[]> {
   const rows = await db
     .select()

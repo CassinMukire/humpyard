@@ -86,12 +86,20 @@ function TierTooltip({ tier }: { tier: string }) {
 }
 
 export function ResultCard({ result }: ResultCardProps) {
-  // End-to-end "Save to dossier" flow (Hitank 2026-09-09).
-  // Calls POST /api/v1/radar/save which creates a real Signal in the
-  // signals table + a real Play in the plays table. No mock data.
-  // The operator can then push the play to Monday from /signals.
+  // End-to-end "Save to dossier + push to Monday" flow (Hitank 2026-09-09).
+  // Calls POST /api/v1/radar/save which (1) creates a real Signal in the
+  // signals table, (2) creates a real Play in the plays table, (3) auto-
+  // pushes the play to monday.com. No mock data. The Monday result is
+  // surfaced as a green badge under the "Open dossier" button so Cassin
+  // sees that the chain completed end-to-end in one click.
   const [, navigate] = useLocation();
-  const [saved, setSaved] = useState<{ signal_id: string; play_id: string; market_id: string | null; dossier_url: string | null } | null>(null);
+  const [saved, setSaved] = useState<{
+    signal_id: string;
+    play_id: string;
+    market_id: string | null;
+    dossier_url: string | null;
+    monday: { status: "created" | "updated" | "skipped_no_token" | "skipped_no_board" | "error"; item_id: string | null; reason?: string };
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const saveMut = useMutation({
@@ -106,7 +114,13 @@ export function ResultCard({ result }: ResultCardProps) {
         operator: result.operator,
       }),
     onSuccess: (data) => {
-      setSaved({ signal_id: data.signal_id, play_id: data.play_id, market_id: data.market_id, dossier_url: data.dossier_url });
+      setSaved({
+        signal_id: data.signal_id,
+        play_id: data.play_id,
+        market_id: data.market_id,
+        dossier_url: data.dossier_url,
+        monday: data.monday,
+      });
       setError(null);
     },
     onError: (e) => {
@@ -183,18 +197,45 @@ export function ResultCard({ result }: ResultCardProps) {
         </Button>
         {/* Save to dossier — Hitank (2026-09-09): the radar's findings
             should land in the dossier. One click creates a real Signal
-            + Play, then the operator can promote to Monday. No mock. */}
+            + Play, then auto-pushes to monday.com. No mock. The Monday
+            status badge appears next to the Open dossier button. */}
         {saved ? (
-          <Button
-            variant="default"
-            size="sm"
-            className="rounded-none bg-green-700 hover:bg-green-600 text-white shrink-0 font-mono text-xs uppercase"
-            onClick={() => saved.dossier_url && navigate(saved.dossier_url)}
-            data-testid="result-card-open-dossier"
-          >
-            <CheckCircle2 className="w-3.5 h-3.5 mr-2" />
-            Open dossier
-          </Button>
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <Button
+              variant="default"
+              size="sm"
+              className="rounded-none bg-green-700 hover:bg-green-600 text-white shrink-0 font-mono text-xs uppercase"
+              onClick={() => saved.dossier_url && navigate(saved.dossier_url)}
+              data-testid="result-card-open-dossier"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 mr-2" />
+              Open dossier
+            </Button>
+            {saved.monday.status === "created" || saved.monday.status === "updated" ? (
+              <span
+                data-testid="result-card-monday-badge"
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-mono border border-green-600/50 text-green-400 bg-green-600/10 rounded-none"
+                title={`Pushed to monday.com — item #${saved.monday.item_id}`}
+              >
+                <CheckCircle2 className="w-2.5 h-2.5" />
+                monday #{saved.monday.item_id}
+              </span>
+            ) : saved.monday.status === "skipped_no_token" || saved.monday.status === "skipped_no_board" ? (
+              <span
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-mono border border-amber-600/50 text-amber-500 bg-amber-600/10 rounded-none"
+                title={saved.monday.reason ?? "Monday not configured"}
+              >
+                monday: {saved.monday.status === "skipped_no_token" ? "no token" : "no board"}
+              </span>
+            ) : (
+              <span
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-mono border border-red-600/50 text-red-400 bg-red-600/10 rounded-none"
+                title={saved.monday.reason ?? "Push failed"}
+              >
+                monday: error
+              </span>
+            )}
+          </div>
         ) : (
           <Button
             variant="default"

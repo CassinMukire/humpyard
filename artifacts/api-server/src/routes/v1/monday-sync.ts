@@ -24,8 +24,8 @@
 // =============================================================================
 
 import { Router } from "express";
-import { getPerson, getOrg, getMarket, listPersonsByOrg } from "../../lib/store-factory";
-import type { Person, Org, Market, RelationshipStatus, OrgType } from "@workspace/api-zod";
+import { getPerson, getOrg, getMarket, listPersonsByOrg, listPlaysByMarket } from "../../lib/store-factory";
+import type { Person, Org, Market, Play, RelationshipStatus, OrgType } from "@workspace/api-zod";
 
 const router = Router();
 
@@ -321,6 +321,149 @@ router.get("/monday/health", async (_req, res) => {
     board_configured: MONDAY_BOARD_PEOPLE_ID !== "PENDING_BOARD_ID",
     people_in_db: peopleInDb,
   });
+});
+
+// =============================================================================
+// v1/monday/push/play/:id — push a single Play to the Monday board
+// =============================================================================
+//
+// Hitank (2026-09-09): "what come here ... and 2ndly its all goes to
+// monday also". The /radar/save endpoint auto-pushes the play it just
+// created. This is the route that does the push. Idempotent — re-pushing
+// the same play updates the existing Monday item instead of creating
+// a duplicate.
+//
+// We map the Play to the same board columns as a Person (the DECEL
+// Relationer & Dialoger board has columns that work for both). The
+// trade-off: a Play on the People board is conceptually different
+// from a Person, but the board schema is what we have. v1.7+ would
+// introduce a separate "Plays" board.
+
+export interface PlayPushResult {
+  play_id: string;
+  monday_item_id: string | null;
+  status: "created" | "updated" | "skipped_no_token" | "skipped_no_board" | "error";
+  reason?: string;
+}
+
+async function buildPlayColumnValues(play: Play, market: Market | null): Promise<Record<string, unknown>> {
+  const vars: Record<string, unknown> = {};
+  if (market) {
+    vars[COL.prio] = { index: Number(PRIO_BY_TIER[market.tier] ?? "0") };
+    if (market.country_iso && MARKNAD_BY_ISO[market.country_iso]) {
+      vars[COL.marknad] = { index: Number(MARKNAD_BY_ISO[market.country_iso]) };
+    } else {
+      vars[COL.marknad] = { index: 18 };
+    }
+  }
+  // Dialogläge = "Ej kontaktad ännu" (index 1) for a new radar finding
+  vars[COL.dialoglage] = { index: 1 };
+  if (play.due) {
+    const dueDate = isoToMondayDate(play.due);
+    if (dueDate) vars[COL.deadline] = dueDate;
+  }
+  // Action → "Varför jag pratar" (the long-text body) + "Nästa steg" (the
+  // short-text next step). The operator reads the long version, acts
+  // on the short one.
+  vars[COL.varforPratar] = play.action;
+  vars[COL.nastaSteg] = play.action;
+  vars[COL.varIgen] = `Radar finding — origin=${play.origin}. Cassin to verify or promote.`;
+  return vars;
+}
+
+export async function pushPlayToMonday(play: Play): Promise<PlayPushResult> {
+  if (!process.env["MONDAY_API_TOKEN"]) {
+    return {
+      play_id: play.id,
+      monday_item_id: play.monday_item_id,
+      status: "skipped_no_token",
+      reason: "MONDAY_API_TOKEN not set; configure to enable sync",
+    };
+  }
+  if (MONDAY_BOARD_PEOPLE_ID === "PENDING_BOARD_ID") {
+    return {
+      play_id: play.id,
+      monday_item_id: play.monday_item_id,
+      status: "skipped_no_board",
+      reason: "MONDAY_BOARD_PEOPLE_ID not set",
+    };
+  }
+  const market = play.market_id ? (await getMarket(play.market_id)) ?? null : null;
+  const columnValues = await buildPlayColumnValues(play, market);
+
+  try {
+    let itemId = play.monday_item_id;
+    const itemName = `[${play.origin}] ${play.action}${market ? ` (${market.country_iso ?? market.id})` : ""}`;
+    if (itemId) {
+      await mondayGraphQL(
+        `mutation($itemId: ID!, $boardId: ID!, $columnValues: JSON!) {
+          change_multiple_column_values(item_id: $itemId, board_id: $boardId, column_values: $columnValues) { id }
+        }`,
+        { itemId: Number(itemId), boardId: Number(MONDAY_BOARD_PEOPLE_ID), columnValues: JSON.stringify(columnValues) },
+      );
+    } else {
+      const raw = await mondayGraphQL(
+        `mutation($boardId: ID!, $itemName: String!, $columnValues: JSON!) {
+          create_item(board_id: $boardId, item_name: $itemName, column_values: $columnValues) { id }
+        }`,
+        { boardId: Number(MONDAY_BOARD_PEOPLE_ID), itemName, columnValues: JSON.stringify(columnValues) },
+      );
+      const data = raw as { data?: { create_item?: { id?: string | number } }; errors?: Array<{ message: string }> };
+      if (data.errors && data.errors.length > 0) {
+        return {
+          play_id: play.id,
+          monday_item_id: null,
+          status: "error",
+          reason: `monday.com: ${data.errors.map((e) => e.message).join("; ")}`,
+        };
+      }
+      itemId = data.data?.create_item?.id != null ? String(data.data.create_item.id) : null;
+    }
+    if (itemId && itemId !== play.monday_item_id) {
+      // Persist the monday_item_id so re-pushes update the same item.
+      const { updatePlay } = await import("../../lib/store-factory");
+      await updatePlay(play.id, { monday_item_id: itemId });
+    }
+    return {
+      play_id: play.id,
+      monday_item_id: itemId,
+      status: play.monday_item_id ? "updated" : "created",
+    };
+  } catch (err) {
+    return {
+      play_id: play.id,
+      monday_item_id: play.monday_item_id,
+      status: "error",
+      reason: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+// POST /api/v1/monday/push/play/:id — push one play to Monday
+router.post("/monday/push/play/:id", async (req, res, next) => {
+  try {
+    // The play id can be like "play_<uuid>". We need to find it across
+    // all markets. For v1 (small number of plays) we just enumerate.
+    const targetId = req.params.id;
+    const { listMarkets } = await import("../../lib/store-factory");
+    const markets = await listMarkets();
+    let found: Play | null = null;
+    for (const m of markets) {
+      const plays = await listPlaysByMarket(m.id);
+      const match = plays.find((p) => p.id === targetId);
+      if (match) { found = match; break; }
+    }
+    if (!found) {
+      // Also try without a market constraint: some plays have market_id=null
+      // We'll fall back to scanning all plays by direct DB query if needed.
+      res.status(404).json({ error: "play_not_found", play_id: targetId });
+      return;
+    }
+    const result = await pushPlayToMonday(found);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;

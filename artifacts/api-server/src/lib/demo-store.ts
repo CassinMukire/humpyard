@@ -322,6 +322,21 @@ export async function listPlaysByMarket(marketId: string): Promise<Play[]> {
   ensureSeeded();
   return Array.from(plays.values()).filter((p) => p.market_id === marketId);
 }
+// Parity with queue-store: persist monday_item_id + status updates on a Play.
+// The /api/v1/radar/save flow calls this after pushing a play to Monday so
+// re-pushes update the same item instead of creating duplicates.
+export async function updatePlay(
+  playId: string,
+  patch: Partial<Pick<Play, "owner" | "due" | "status" | "monday_item_id" | "action">>,
+): Promise<Play | undefined> {
+  ensureSeeded();
+  const cur = plays.get(playId);
+  if (!cur) return undefined;
+  const next: Play = { ...cur, ...patch };
+  plays.set(playId, next);
+  persist();
+  return next;
+}
 
 // Signals (Phase 7 — radar)
 export async function upsertSignal(s: Signal): Promise<Signal> {

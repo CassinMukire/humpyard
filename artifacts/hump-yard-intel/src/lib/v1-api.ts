@@ -230,17 +230,18 @@ export async function dismissSignal(id: string, reason: string): Promise<Signal>
 }
 
 // -----------------------------------------------------------------------------
-// Radar save (end-to-end: Scanner / Global Radar → dossier + Play)
+// Radar save (end-to-end: Scanner / Global Radar → dossier + Play → Monday)
 //
 // Hitank (2026-09-09): "what come here from any from means from target
 // or form global radar then its go to dossiers proply structurely ...
 // and 2ndly its all goes to monday also". This client function hits the
 // POST /api/v1/radar/save endpoint which (1) creates a real Signal in
 // the signals table, (2) creates a real Play in the plays table linked
-// to that signal, (3) returns the dossier URL so the UI can navigate
-// the operator straight to the affected market. The push to Monday
-// happens in a follow-up step (the operator reviews the play, then
-// promotes it). No mock data anywhere — everything is persisted.
+// to that signal, (3) auto-pushes the play to monday.com in the same
+// request, (4) returns the dossier URL + monday result so the UI can
+// navigate the operator straight to the affected market AND show the
+// Monday push status. One click. No mock data anywhere — everything
+// is persisted.
 // -----------------------------------------------------------------------------
 
 export interface RadarSaveInput {
@@ -254,12 +255,19 @@ export interface RadarSaveInput {
   operator?: string | null;
 }
 
+export interface RadarSaveMondayResult {
+  status: "created" | "updated" | "skipped_no_token" | "skipped_no_board" | "error";
+  item_id: string | null;
+  reason?: string;
+}
+
 export interface RadarSaveResult {
   ok: true;
   signal_id: string;
   play_id: string;
   market_id: string | null;
   dossier_url: string | null;
+  monday: RadarSaveMondayResult;
   next_action: string;
 }
 

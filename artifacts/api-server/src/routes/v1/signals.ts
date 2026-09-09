@@ -26,6 +26,7 @@ import {
 } from "../../lib/store-factory";
 import { SourcedFactSchema, SignalSchema } from "@workspace/api-zod";
 import { logger } from "../../lib/logger";
+import { pushPlayToMonday, type PlayPushResult } from "./monday-sync";
 
 const router = Router();
 
@@ -113,7 +114,7 @@ router.get("/signals/:id", async (req, res, next) => {
 // "Save this radar finding into the dossier + push to Monday" action.
 //
 // Input: the CountryResult from /api/search/country (Target Scanner or
-// Global Radar). Output: { signal_id, play_id, market_id, dossier_url }.
+// Global Radar). Output: { signal_id, play_id, market_id, dossier_url, monday }.
 //
 //   1. Map the country to a market (PL/DE/FI/AT/CZ/MC/TR/IT/NO/HU) by
 //      ISO code or by name. Country names not in the dossier portfolio
@@ -124,13 +125,13 @@ router.get("/signals/:id", async (req, res, next) => {
 //      procurementPortal or first source). Real data only — no mock.
 //   3. Create a Play in the plays table (action="Verify radar finding
 //      for {country}", status=open, origin=engine, market_id=matched).
-//   4. Link the signal to the play (status flips to "promoted").
-//
-// The push to Monday is a separate flow: the operator promotes the
-// signal again from the /signals page (or directly via the existing
-// POST /api/v1/signals/:id/promote endpoint). This keeps the radar/save
-// action idempotent and lets the operator confirm the LinkedIn URL
-// before the contact goes to Monday.
+//   4. Link the signal to the play (signal flips to "promoted").
+//   5. Auto-push the play to monday.com (Hitank 2026-09-09: "its all
+//      goes to monday also"). The push is idempotent — re-runs update
+//      the same Monday item instead of creating duplicates. If the
+//      token/board is not configured, the play is still saved to the
+//      DB; the response surfaces a `skipped_no_token` / `skipped_no_board`
+//      / `error` status so the operator can see what happened.
 //
 // The route is idempotent on (source, external_id) at the signal level
 // (the upsert handles duplicates). Re-running the same scan lands one
@@ -217,7 +218,7 @@ router.post("/radar/save", async (req, res, next) => {
     });
 
     // 3. Create a Play (the action that will get pushed to Monday)
-    const play = await createPlay({
+    let play = await createPlay({
       market_id,
       action: `Verify radar finding for ${body.country}${body.tier ? ` (tier ${body.tier})` : ""}`,
       owner: null,
@@ -231,8 +232,44 @@ router.post("/radar/save", async (req, res, next) => {
     // Link the signal to the play (signal flips to "promoted")
     await promoteSignal(signal.id, play.id);
 
+    // Auto-push the play to monday.com (Hitank 2026-09-09: "its all
+    // goes to monday also"). pushPlayToMonday persists the new
+    // monday_item_id via updatePlay if the push created an item, so
+    // re-pushes update the same item. If the push is skipped (no
+    // token/board) the play is still saved to the DB.
+    let mondayResult: PlayPushResult | null = null;
+    try {
+      mondayResult = await pushPlayToMonday(play);
+      // pushPlayToMonday persists the item_id itself; we also update
+      // the local `play` copy so the response reflects the final state.
+      if (mondayResult.monday_item_id) {
+        play = { ...play, monday_item_id: mondayResult.monday_item_id };
+      }
+    } catch (err) {
+      // Don't fail the whole radar/save if Monday is down — the Signal
+      // and Play are already persisted. Log and surface the error in
+      // the response so the operator can re-push later.
+      mondayResult = {
+        play_id: play.id,
+        monday_item_id: null,
+        status: "error",
+        reason: err instanceof Error ? err.message : String(err),
+      };
+      logger.warn(
+        { play_id: play.id, err: mondayResult.reason },
+        "radar/save: monday push failed (signal + play still persisted)",
+      );
+    }
+
     logger.info(
-      { country: body.country, market_id, signal_id: signal.id, play_id: play.id },
+      {
+        country: body.country,
+        market_id,
+        signal_id: signal.id,
+        play_id: play.id,
+        monday_status: mondayResult?.status,
+        monday_item_id: mondayResult?.monday_item_id,
+      },
       "radar/save: end-to-end flow",
     );
 
@@ -242,7 +279,15 @@ router.post("/radar/save", async (req, res, next) => {
       play_id: play.id,
       market_id,
       dossier_url: market_id ? `/dossiers/${market_id}` : null,
-      next_action: "Open the dossier to see the new play. Push to Monday from /signals when ready.",
+      monday: {
+        status: mondayResult?.status ?? "skipped_no_token",
+        item_id: mondayResult?.monday_item_id ?? null,
+        reason: mondayResult?.reason,
+      },
+      next_action:
+        mondayResult?.status === "created" || mondayResult?.status === "updated"
+          ? `Pushed to monday.com (item #${mondayResult.monday_item_id}). Open the dossier to see the new play.`
+          : "Play is in the DB but was not pushed to monday.com (token/board not configured or push failed). Open the dossier to see the new play; you can re-push from /signals later.",
     });
   } catch (err) {
     next(err);

@@ -824,7 +824,8 @@ export default function DossierDetail() {
                 </Badge>
               </CardTitle>
               <CardDescription>
-                Radar findings + manual actions. Promote a play to Monday from /signals.
+                Radar findings + manual actions. A green ✓ Monday badge means the play is in the DECEL
+                Relationer & Dialoger board (auto-pushed from /radar or manually promoted from /signals).
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -834,7 +835,7 @@ export default function DossierDetail() {
                     <Badge
                       variant="outline"
                       className={cn(
-                        "text-[9px] font-mono px-1.5 py-0 rounded-none uppercase",
+                        "text-[9px] font-mono px-1.5 py-0 rounded-none uppercase shrink-0",
                         p.origin === "engine"
                           ? "border-amber-500/50 text-amber-500 bg-amber-500/10"
                           : "border-blue-500/50 text-blue-400 bg-blue-500/10",
@@ -843,10 +844,24 @@ export default function DossierDetail() {
                       {p.origin}
                     </Badge>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground leading-relaxed">{p.action}</p>
+                      <div className="flex items-start gap-2 flex-wrap">
+                        <p className="text-sm text-foreground leading-relaxed flex-1 min-w-0">{p.action}</p>
+                        {p.monday_item_id ? (
+                          <Badge
+                            variant="outline"
+                            data-testid="active-play-monday-badge"
+                            className="text-[10px] font-mono px-1.5 py-0 rounded-none border-green-600/50 text-green-400 bg-green-600/10 shrink-0"
+                            title={`Synced to monday.com — item #${p.monday_item_id}`}
+                          >
+                            <Check className="w-2.5 h-2.5 mr-0.5 inline" />
+                            monday #{p.monday_item_id}
+                          </Badge>
+                        ) : null}
+                      </div>
                       <p className="text-[10px] text-muted-foreground font-mono mt-0.5">
                         {p.status} · {p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}
                         {p.market_id ? ` · market ${p.market_id}` : ""}
+                        {p.monday_item_id ? "" : " · not yet on monday"}
                       </p>
                     </div>
                   </li>

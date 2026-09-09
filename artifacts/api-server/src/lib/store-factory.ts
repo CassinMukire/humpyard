@@ -107,6 +107,7 @@ export const touchPersonEngagement = active.touchPersonEngagement;
 
 export const createPlay = active.createPlay;
 export const listPlaysByMarket = active.listPlaysByMarket;
+export const updatePlay = active.updatePlay;
 
 export const upsertSignal = active.upsertSignal;
 export const getSignal = active.getSignal;
