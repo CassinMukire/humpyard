@@ -44,7 +44,9 @@ export const PRIMARY_DOMAIN_WHITELIST: ReadonlySet<string> = new Set<string>([
   "adb.org",
   "eib.org",
   // DECEL's own assets (when used as primary source for what we shipped)
-  "decel.com",
+  // (per Cassin 2026-09-08 fix: decel.com is a skincare company, not us.
+  // The real DECEL is at decel.se.)
+  "decel.se",
 ]);
 
 // A fact is "primary" if its source_url host matches this whitelist

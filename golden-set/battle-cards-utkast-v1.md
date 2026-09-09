@@ -92,7 +92,7 @@ org_nsb, org_mav) or invent a new one in the same pattern.
 **Org ID:** org_oebb
 **Kind:** relationship
 **Who they are:** ÖBB — Austrian Federal Railways. National rail operator.
-**Why this matters:** Austria is the only major market growing. ÖBB has committed a SWL (Sweeper / Wagon Load) operator angle. No active DECEL position in v1.
+**Why this matters:** Austria is the only major market growing. ÖBB has committed a SWL (Single Wagon Load) operator angle. No active DECEL position in v1.
 **Trap to avoid:** Voestalpine is HQ'd in Linz, Austria — local incumbent. Don't pitch at ÖBB without checking what Voestalpine has on the ground first.
 **D2 / Way in:** Doctrine: monitor ÖBB's Rahmenplan (5-year plan). Position DECEL on the SWL operator angle as the differentiator.
 **D2 / Opening:** Open with: 'We're tracking ÖBB's SWL operator angle and want to make sure modern track-brake practice is in the spec.'

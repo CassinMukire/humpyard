@@ -62,7 +62,7 @@ const URL = {
   // Real primary URLs — these are the OFFICIAL WEBSITES, not "this is the
   // page that proves a specific claim." For dossier facts, we either link
   // to the specific page (e.g. a tender document) or we don't link at all.
-  decel: "https://www.decel.com",
+  decel: "https://decel.se",
   plkPlk: "https://www.plk-sa.pl",
   systra: "https://www.systra.com",
   axtone: "https://axtone.com",
@@ -444,7 +444,7 @@ function buildSeedData(): SeedData {
     yard_count_source_url: null,
     closed_at: null,
     verdict: {
-      value: "Austria is on the active BD portfolio per v1.6 brief §3. ÖBB is the national rail operator. The only major market growing; ÖBB committed a SWL (Sweeper / Wagon Load) operator angle. Specific facts arrive via F6 import.",
+      value: "Austria is on the active BD portfolio per v1.6 brief §3. ÖBB is the national rail operator. The only major market growing; ÖBB committed a SWL (Single Wagon Load) operator angle. Specific facts arrive via F6 import.",
       source_url: URL.oebb,
       retrieved_at: SEED_TODAY,
       confidence: "I",
