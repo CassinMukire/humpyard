@@ -28,6 +28,8 @@ import type {
   MeetingLog,
   BattleCard,
   DoctrineRevision,
+  CoverageCheck,
+  CoverageSummary,
 } from "@workspace/api-zod";
 import { isQueueItemStale } from "./trust-layer";
 import { logger } from "./logger";
@@ -39,6 +41,7 @@ const orgs = new Map<string, Org>();
 const persons = new Map<string, Person>();
 const plays = new Map<string, Play>();
 const signals = new Map<string, Signal>();
+const coverageChecks = new Map<string, CoverageCheck>();
 const reviewQueue = new Map<string, ReviewQueueItem>();
 const corrections: Correction[] = [];
 const meetings: MeetingLog[] = [];
@@ -389,6 +392,54 @@ export async function logCorrection(c: Omit<Correction, "id" | "ts"> & { ts?: st
   corrections.push(correction);
   persist();
   return correction;
+}
+
+// =============================================================================
+// Coverage ledger — Phase 0 #2 (demo-store parity)
+//
+// In-memory store mirrors the queue-store API. The live demo seed has zero
+// coverage entries by default, so every market renders as "unwatched" until
+// the operator (or a cron) adds them.
+// =============================================================================
+
+export async function upsertCoverageCheck(c: CoverageCheck): Promise<CoverageCheck> {
+  ensureSeeded();
+  const lastChecked = c.last_checked_at ?? new Date().toISOString();
+  const id = c.id || `cov_${c.market_id}_${c.source_id}_${Date.parse(lastChecked)}`;
+  const next: CoverageCheck = { ...c, id, last_checked_at: lastChecked };
+  coverageChecks.set(id, next);
+  persist();
+  return next;
+}
+export async function listCoverageByMarket(marketId: string): Promise<CoverageCheck[]> {
+  ensureSeeded();
+  return Array.from(coverageChecks.values())
+    .filter((c) => c.market_id === marketId)
+    .sort((a, b) => b.last_checked_at.localeCompare(a.last_checked_at));
+}
+export async function getCoverageSummary(marketId: string): Promise<CoverageSummary> {
+  const checks = await listCoverageByMarket(marketId);
+  const latestBySource = new Map<string, CoverageCheck>();
+  for (const c of checks) {
+    const cur = latestBySource.get(c.source_id);
+    if (!cur || c.last_checked_at > cur.last_checked_at) latestBySource.set(c.source_id, c);
+  }
+  const lastCheckedAt = checks.length === 0
+    ? null
+    : checks.reduce((acc, c) => (c.last_checked_at > acc ? c.last_checked_at : acc), checks[0].last_checked_at);
+  return {
+    market_id: marketId,
+    status: latestBySource.size === 0 ? "unwatched" : "watched",
+    last_checked_at: lastCheckedAt,
+    sources_checked: latestBySource.size,
+    negative_findings: checks.filter((c) => c.status === "no_results").length,
+    checks,
+  };
+}
+export async function listAllCoverage(): Promise<CoverageSummary[]> {
+  ensureSeeded();
+  const ids = new Set(Array.from(coverageChecks.values()).map((c) => c.market_id));
+  return Promise.all(Array.from(ids).map((id) => getCoverageSummary(id)));
 }
 export async function listCorrections(factId?: string): Promise<Correction[]> {
   ensureSeeded();

@@ -25,7 +25,10 @@ import type {
   MeetingLog,
   BattleCard,
   DoctrineRevision,
+  CoverageCheck,
+  CoverageSummary,
 } from "@workspace/api-zod";
+import type { CoverageCheckRow } from "@workspace/db/schema";
 
 // -----------------------------------------------------------------------------
 // Row → wire-format helpers (Drizzle rows ↔ Zod types)
@@ -602,6 +605,117 @@ export async function dismissSignal(signalId: string, reason: string): Promise<S
     .set({ status: "dismissed", dismissed_reason: reason })
     .where(eq(schema.signals.id, signalId));
   return getSignal(signalId);
+}
+
+// =============================================================================
+// Coverage ledger — Phase 0 #2
+//
+// Hitank 2026-09-14 / Cassin 2026-09-11: "Coverage ledger, so a country with
+// no source configured renders as 'unwatched'". The pattern: each check is a
+// row in `coverage_checks`; `listCoverageByMarket` returns the most-recent
+// check per (market, source). If no rows exist for a market, the operator's
+// UI renders it as "unwatched" — France had no French source for six weeks
+// and nothing said so, and that's what #2 fixes.
+// =============================================================================
+
+function rowToCoverage(r: CoverageCheckRow): CoverageCheck {
+  return {
+    id: r.id,
+    market_id: r.market_id,
+    source_id: r.source_id as CoverageCheck["source_id"],
+    source_label: r.source_label ?? null,
+    query: r.query ?? null,
+    result_count: r.result_count,
+    status: r.status as CoverageCheck["status"],
+    last_checked_at: r.last_checked_at.toISOString(),
+    notes: r.notes ?? null,
+    operator: r.operator ?? null,
+    created_at: r.created_at.toISOString(),
+  };
+}
+
+export async function upsertCoverageCheck(c: CoverageCheck): Promise<CoverageCheck> {
+  const lastChecked = c.last_checked_at ? new Date(c.last_checked_at) : new Date();
+  const createdAt = c.created_at ? new Date(c.created_at) : new Date();
+  // Stable id so re-running the same check upserts cleanly (no audit-trail
+  // duplication). Caller passes `cov_<market>_<source>_<ts>`.
+  const id = c.id || `cov_${c.market_id}_${c.source_id}_${lastChecked.getTime()}`;
+  await db
+    .insert(schema.coverageChecks)
+    .values({
+      id,
+      market_id: c.market_id,
+      source_id: c.source_id,
+      source_label: c.source_label ?? null,
+      query: c.query ?? null,
+      result_count: c.result_count,
+      status: c.status,
+      last_checked_at: lastChecked,
+      notes: c.notes ?? null,
+      operator: c.operator ?? null,
+      created_at: createdAt,
+    })
+    .onConflictDoUpdate({
+      target: schema.coverageChecks.id,
+      set: {
+        source_label: c.source_label ?? null,
+        query: c.query ?? null,
+        result_count: c.result_count,
+        status: c.status,
+        last_checked_at: lastChecked,
+        notes: c.notes ?? null,
+        operator: c.operator ?? null,
+      },
+    });
+  const rows = await db.select().from(schema.coverageChecks).where(eq(schema.coverageChecks.id, id)).limit(1);
+  return rowToCoverage(rows[0]);
+}
+
+export async function listCoverageByMarket(marketId: string): Promise<CoverageCheck[]> {
+  // Return ALL rows for the market (audit trail), not just the latest per
+  // source. The UI surfaces the most-recent per source; everything else is
+  // available for "what did we check 3 weeks ago?" questions.
+  const rows = await db
+    .select()
+    .from(schema.coverageChecks)
+    .where(eq(schema.coverageChecks.market_id, marketId))
+    .orderBy(desc(schema.coverageChecks.last_checked_at));
+  return rows.map(rowToCoverage);
+}
+
+export async function getCoverageSummary(marketId: string): Promise<CoverageSummary> {
+  const checks = await listCoverageByMarket(marketId);
+  // Per-source most-recent check (audit trail → surface latest)
+  const latestBySource = new Map<string, CoverageCheck>();
+  for (const c of checks) {
+    const cur = latestBySource.get(c.source_id);
+    if (!cur || new Date(c.last_checked_at) > new Date(cur.last_checked_at)) {
+      latestBySource.set(c.source_id, c);
+    }
+  }
+  const sourcesChecked = latestBySource.size;
+  const lastCheckedAt = checks.length === 0
+    ? null
+    : checks.reduce((acc, c) => (new Date(c.last_checked_at) > new Date(acc) ? c.last_checked_at : acc), checks[0].last_checked_at);
+  const negativeFindings = checks.filter((c) => c.status === "no_results").length;
+  return {
+    market_id: marketId,
+    status: sourcesChecked === 0 ? "unwatched" : "watched",
+    last_checked_at: lastCheckedAt,
+    sources_checked: sourcesChecked,
+    negative_findings: negativeFindings,
+    checks,
+  };
+}
+
+export async function listAllCoverage(): Promise<CoverageSummary[]> {
+  // Helper for a global coverage view (Phase 1 #2 follow-up). Returns
+  // summary per market for the coverage ledger landing card.
+  const rows = await db
+    .select({ market_id: schema.coverageChecks.market_id })
+    .from(schema.coverageChecks)
+    .groupBy(schema.coverageChecks.market_id);
+  return Promise.all(rows.map((r) => getCoverageSummary(r.market_id)));
 }
 
 // -----------------------------------------------------------------------------

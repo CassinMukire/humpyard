@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { BriefingLayout } from "@/components/BriefingLayout";
-import { getDossier, patchPerson, linkedInSearchUrl, listSnapshots, snapshotIndex, addReviewQueueItem, type SnapshotEntry } from "@/lib/v1-api";
+import { getDossier, patchPerson, linkedInSearchUrl, listSnapshots, snapshotIndex, addReviewQueueItem, getCoverage, type SnapshotEntry, type CoverageSummary } from "@/lib/v1-api";
 import { customFetch, ApiError } from "@workspace/api-client-react";
 import {
   ArrowLeft,
@@ -37,6 +37,9 @@ import {
   Send,
   AlertTriangle,
   Search,
+  Radar,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import type { SourcedFact, Yard, Org, Person, Tier, Posture, PersonInterest, Market } from "@workspace/api-client-react";
 import { useState } from "react";
@@ -665,6 +668,18 @@ export default function DossierDetail() {
     ? snapshotIndex(snapshotsQ.data.entries)
     : new Map();
 
+  // Coverage ledger — Phase 0 #2 (Hitank 2026-09-14 / Cassin 2026-09-11)
+  // The dossier shows a big red "unwatched" badge if no source has been
+  // checked for this market, or the most-recent check per source if it
+  // has been. This is the fix for "France sat unnoticed for six weeks
+  // because no French source existed and nothing said so".
+  const coverageQ = useQuery({
+    queryKey: ["coverage", id],
+    queryFn: () => getCoverage(id),
+    enabled: !!id,
+    staleTime: 30_000,
+  });
+
   // Helper used by every <SourceLink> in this page. Returns the snapshot
   // entry (with snapshot_url + fetched_at) for a given source URL, or null.
   const snapshotFor = (url: string): SnapshotEntry | null => snapshotByUrl.get(url) ?? null;
@@ -786,6 +801,114 @@ export default function DossierDetail() {
             </div>
           </div>
         )}
+
+        {/* Coverage ledger — Phase 0 #2 (Hitank 2026-09-14 / Cassin 2026-09-11).
+            France had no French source for six weeks and nothing said so. Now
+            every dossier shows either a "checked on" date or the word
+            "unwatched". The unwatched state is loud, not silent — Cassin must
+            not mistake an empty dossier for a researched one. */}
+        <Card data-testid="dossier-coverage-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              {coverageQ.data?.status === "watched" ? (
+                <Eye className="w-4 h-4 text-primary" />
+              ) : (
+                <EyeOff className="w-4 h-4 text-red-400" />
+              )}
+              Coverage
+            </CardTitle>
+            <CardDescription>
+              Which sources were checked, when, with what query, and what came back.
+              No source checked = unwatched (do not quote this dossier on the floor).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {coverageQ.isLoading ? (
+              <p className="text-xs text-muted-foreground font-mono">Loading coverage…</p>
+            ) : !coverageQ.data || coverageQ.data.status === "unwatched" ? (
+              <div
+                data-testid="coverage-unwatched-banner"
+                className="border-2 border-red-600/60 bg-red-600/10 p-3"
+              >
+                <p className="text-[11px] font-mono uppercase tracking-wider text-red-400 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  ⚠ Unwatched — no source configured
+                </p>
+                <p className="text-[11px] text-red-300/80 font-mono leading-relaxed mt-2">
+                  Nothing has been checked for this market. The dossier below
+                  may be empty or unverified. Add a coverage entry with{" "}
+                  <code className="bg-background px-1 text-[10px]">POST /api/v1/coverage</code>{" "}
+                  (status=checked, no_results, error, or manual_confirmed) and
+                  it will appear here.
+                </p>
+              </div>
+            ) : (
+              <div data-testid="coverage-watched-block" className="space-y-2">
+                <p className="text-[11px] font-mono text-muted-foreground flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-primary" />
+                  Last checked{" "}
+                  <span className="text-foreground">
+                    {coverageQ.data.last_checked_at
+                      ? new Date(coverageQ.data.last_checked_at).toLocaleString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "—"}
+                  </span>
+                  {" · "}
+                  <span className="text-primary">{coverageQ.data.sources_checked}</span> source{coverageQ.data.sources_checked === 1 ? "" : "s"} checked
+                  {coverageQ.data.negative_findings > 0 && (
+                    <span className="text-amber-500">
+                      {" · "}
+                      {coverageQ.data.negative_findings} negative finding{coverageQ.data.negative_findings === 1 ? "" : "s"} (searched, nothing came back — still a coverage event)
+                    </span>
+                  )}
+                </p>
+                <ul className="space-y-1.5 mt-2">
+                  {/* Dedupe by source_id: show the most-recent check per source */}
+                  {(() => {
+                    const latest = new Map<string, NonNullable<CoverageSummary["checks"]>[number]>();
+                    for (const c of coverageQ.data!.checks) {
+                      const cur = latest.get(c.source_id);
+                      if (!cur || c.last_checked_at > cur.last_checked_at) {
+                        latest.set(c.source_id, c);
+                      }
+                    }
+                    return Array.from(latest.values()).map((c) => (
+                      <li
+                        key={c.source_id}
+                        className="flex items-start gap-2 border-l border-border pl-2 py-1 text-[11px] font-mono"
+                      >
+                        <span className="text-foreground">{c.source_label ?? c.source_id}</span>
+                        <span className="text-muted-foreground">
+                          {c.status === "no_results" ? (
+                            <span className="text-amber-500">no_results ({c.result_count})</span>
+                          ) : c.status === "error" ? (
+                            <span className="text-red-400">error</span>
+                          ) : c.status === "manual_confirmed" ? (
+                            <span className="text-primary">manual_confirmed</span>
+                          ) : (
+                            <span className="text-primary">{c.result_count} result{c.result_count === 1 ? "" : "s"}</span>
+                          )}
+                        </span>
+                        <span className="text-muted-foreground ml-auto">
+                          {new Date(c.last_checked_at).toLocaleString("en-GB", {
+                            day: "2-digit",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </li>
+                    ));
+                  })()}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* 5-question block */}
         <Card>

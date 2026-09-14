@@ -302,6 +302,43 @@ export async function listSnapshots(): Promise<{ entries: SnapshotEntry[]; count
   return customFetch<{ entries: SnapshotEntry[]; count: number }>("/api/v1/snapshots");
 }
 
+// -----------------------------------------------------------------------------
+// Coverage ledger — Phase 0 #2
+// Hitank 2026-09-14 / Cassin 2026-09-11: per-market "unwatched" state so the
+// operator knows which dossiers rest on nothing.
+// -----------------------------------------------------------------------------
+
+export interface CoverageCheck {
+  id: string;
+  market_id: string;
+  source_id: string;
+  source_label: string | null;
+  query: string | null;
+  result_count: number;
+  status: "checked" | "no_results" | "error" | "manual_confirmed";
+  last_checked_at: string;
+  notes: string | null;
+  operator: string | null;
+  created_at: string;
+}
+
+export interface CoverageSummary {
+  market_id: string;
+  status: "watched" | "unwatched";
+  last_checked_at: string | null;
+  sources_checked: number;
+  negative_findings: number;
+  checks: CoverageCheck[];
+}
+
+export async function getCoverage(marketId: string): Promise<CoverageSummary> {
+  return customFetch<CoverageSummary>(`/api/v1/coverage/${encodeURIComponent(marketId)}`);
+}
+
+export async function listAllCoverage(): Promise<{ markets: CoverageSummary[]; count: number }> {
+  return customFetch<{ markets: CoverageSummary[]; count: number }>("/api/v1/coverage");
+}
+
 /**
  * Build a quick lookup Map<url, SnapshotEntry> from the full list. Used by
  * the dossier page to render the "📸 cached" badge per fact.

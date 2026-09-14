@@ -115,6 +115,12 @@ export const listSignals = active.listSignals;
 export const promoteSignal = active.promoteSignal;
 export const dismissSignal = active.dismissSignal;
 
+// Phase 0 #2 — coverage ledger
+export const upsertCoverageCheck = active.upsertCoverageCheck;
+export const listCoverageByMarket = active.listCoverageByMarket;
+export const getCoverageSummary = active.getCoverageSummary;
+export const listAllCoverage = active.listAllCoverage;
+
 export const logCorrection = active.logCorrection;
 export const listCorrections = active.listCorrections;
 export const isRejectedContent = active.isRejectedContent;

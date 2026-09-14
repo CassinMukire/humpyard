@@ -411,6 +411,66 @@ export const SignalSchema = z.object({
 export type Signal = z.infer<typeof SignalSchema>;
 
 // -----------------------------------------------------------------------------
+// CoverageCheck — Phase 0 #2: per-(market, source) coverage audit
+//
+// Hitank 2026-09-14 / Cassin 2026-09-11: "Coverage ledger, so a country with
+// no source configured renders as 'unwatched'". A country with zero rows
+// is unwatched. A country with rows shows the most-recent check per source.
+//
+// `manual_confirmed` is for situations where the operator knows the source
+// is OK (e.g. they read the monthly PDF and don't have an automated feed
+// yet) — it still counts as coverage, just human-stamped.
+// -----------------------------------------------------------------------------
+
+export const CoverageStatusSchema = z.enum([
+  "checked",          // ran, >=1 result
+  "no_results",       // ran, 0 results (still a coverage event — negative finding)
+  "error",            // ran, failed (timeout / API key / etc.)
+  "manual_confirmed", // operator manually stamped
+]);
+export type CoverageStatus = z.infer<typeof CoverageStatusSchema>;
+
+export const CoverageSourceSchema = z.enum([
+  "exa",
+  "ted_eu",
+  "cupt_feniks",
+  "eradis",
+  "zakazky_sz",
+  "vaylavirasto",
+  "railfacilitiesportal",
+  "manual",
+]);
+export type CoverageSource = z.infer<typeof CoverageSourceSchema>;
+
+export const CoverageCheckSchema = z.object({
+  id: z.string(),
+  market_id: z.string(),
+  source_id: CoverageSourceSchema,
+  source_label: z.string().nullable(),
+  query: z.string().nullable(),
+  result_count: z.number().int().nonnegative(),
+  status: CoverageStatusSchema,
+  last_checked_at: z.string(), // ISO date
+  notes: z.string().nullable(),
+  operator: z.string().nullable(),
+  created_at: z.string(),
+});
+export type CoverageCheck = z.infer<typeof CoverageCheckSchema>;
+
+export const CoverageSummarySchema = z.object({
+  market_id: z.string(),
+  status: z.enum(["watched", "unwatched"]),
+  /** Most-recent check across all sources, ISO date or null. */
+  last_checked_at: z.string().nullable(),
+  /** Number of distinct sources checked at least once. */
+  sources_checked: z.number().int().nonnegative(),
+  /** Negative findings count (sources that returned 0 results). */
+  negative_findings: z.number().int().nonnegative(),
+  checks: z.array(CoverageCheckSchema),
+});
+export type CoverageSummary = z.infer<typeof CoverageSummarySchema>;
+
+// -----------------------------------------------------------------------------
 // MeetingLog — post-meeting capture (US-4.3, conditional scope in v1)
 // -----------------------------------------------------------------------------
 

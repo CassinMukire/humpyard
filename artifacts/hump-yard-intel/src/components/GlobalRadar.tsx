@@ -221,9 +221,19 @@ export function GlobalRadar() {
                                 {mktCfg.label}
                               </span>
                               {mkt.activeYards > 0 && (
-                                <span className="text-[9px] font-mono opacity-60">
-                                  ~{mkt.activeYards} yards · {formatMSEK(mkt.potentialValueMaxMSEK)} max
-                                </span>
+                                mkt.unverified ? (
+                                  <span
+                                    data-testid="global-radar-unverified"
+                                    className="text-[9px] font-mono text-red-400/80 line-through"
+                                    title="Unverified estimate — do not quote"
+                                  >
+                                    ⚠ ~{mkt.activeYards} yards (unverified)
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-mono opacity-60">
+                                    ~{mkt.activeYards} yards · {formatMSEK(mkt.potentialValueMaxMSEK)} max
+                                  </span>
+                                )
                               )}
                             </div>
                           )}

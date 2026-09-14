@@ -343,40 +343,78 @@ export function ResultCard({ result }: ResultCardProps) {
                   </div>
 
                   {mkt.priority !== "Restricted" && mkt.activeYards > 0 ? (
-                    <div className="space-y-2">
-                      {/* Yard count */}
-                      <div className="flex justify-between text-xs font-mono">
-                        <span className="text-muted-foreground">Active hump yards</span>
-                        <span className="text-white">~{mkt.activeYards}</span>
-                      </div>
-
-                      {/* Value range */}
-                      <div className="flex justify-between text-xs font-mono">
-                        <span className="text-muted-foreground">Est. market value</span>
-                        <span className="text-primary font-semibold">
-                          {formatMSEK(mkt.potentialValueMinMSEK)}–{formatMSEK(mkt.potentialValueMaxMSEK)}
-                        </span>
-                      </div>
-
-                      {/* Visual bar: proportion of max market (Germany ~12,750 MSEK) */}
-                      <div className="mt-1">
-                        <div className="h-1.5 bg-border w-full">
-                          <div
-                            className={`h-full transition-all ${cfg.bg.replace("/10", "/60")}`}
-                            style={{ width: `${Math.min(100, (mkt.potentialValueMaxMSEK / 12750) * 100)}%` }}
-                          />
+                    mkt.unverified ? (
+                      // ── UNVERIFIED TREATMENT (Phase 0 #1, Cassin 2026-09-11)
+                      // The yard count and value range come from the legacy
+                      // MARKET_DATA table which has no source. Render with
+                      // an unmissable "do not quote" banner so the operator
+                      // cannot accidentally cite a fabricated number at
+                      // InnoTrans.
+                      <div
+                        data-testid="market-unverified-banner"
+                        className="space-y-2 border-2 border-red-600/60 bg-red-600/10 p-3"
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider text-red-400">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          ⚠ Unverified estimate — do not quote
                         </div>
-                        <p className="text-[9px] font-mono text-muted-foreground/60 mt-0.5">
-                          Relative to Germany (largest market)
+
+                        {/* Yard count — strikethrough to signal "not real" */}
+                        <div className="flex justify-between text-xs font-mono">
+                          <span className="text-muted-foreground">Active hump yards</span>
+                          <span className="text-red-300/70 line-through">~{mkt.activeYards}</span>
+                        </div>
+
+                        {/* Value range — strikethrough */}
+                        <div className="flex justify-between text-xs font-mono">
+                          <span className="text-muted-foreground">Est. market value</span>
+                          <span className="text-red-300/70 line-through">
+                            {formatMSEK(mkt.potentialValueMinMSEK)}–{formatMSEK(mkt.potentialValueMaxMSEK)}
+                          </span>
+                        </div>
+
+                        <p className="text-[10px] text-red-400/80 font-mono leading-relaxed mt-1">
+                          No source. Until a SourcedFact-backed yard count
+                          is loaded for this country, treat all numbers as
+                          placeholders. See Phase 0 #1 + #22.
                         </p>
                       </div>
+                    ) : (
+                      // ── VERIFIED (SourcedFact-backed) — render normally
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-mono">
+                          <span className="text-muted-foreground">Active hump yards</span>
+                          <span className="text-white">{mkt.activeYards}</span>
+                        </div>
 
-                      {/* Benchmark note */}
-                      <p className="text-[10px] text-muted-foreground/70 font-mono border-t border-border pt-2 mt-1">
-                        Based on 70–150 MSEK per yard (DECEL benchmark).
-                        Full replacement cycle ~25 yrs.
-                      </p>
-                    </div>
+                        {/* Value range */}
+                        <div className="flex justify-between text-xs font-mono">
+                          <span className="text-muted-foreground">Est. market value</span>
+                          <span className="text-primary font-semibold">
+                            {formatMSEK(mkt.potentialValueMinMSEK)}–{formatMSEK(mkt.potentialValueMaxMSEK)}
+                          </span>
+                        </div>
+
+                        {/* Visual bar: proportion of max market (Germany ~12,750 MSEK) */}
+                        <div className="mt-1">
+                          <div className="h-1.5 bg-border w-full">
+                            <div
+                              className={`h-full transition-all ${cfg.bg.replace("/10", "/60")}`}
+                              style={{ width: `${Math.min(100, (mkt.potentialValueMaxMSEK / 12750) * 100)}%` }}
+                            />
+                          </div>
+                          <p className="text-[9px] font-mono text-muted-foreground/60 mt-0.5">
+                            Relative to Germany (largest market)
+                          </p>
+                        </div>
+
+                        {/* Benchmark note */}
+                        <p className="text-[10px] text-muted-foreground/70 font-mono border-t border-border pt-2 mt-1">
+                          Based on 70–150 MSEK per yard (DECEL benchmark).
+                          Full replacement cycle ~25 yrs.
+                        </p>
+                      </div>
+                    )
                   ) : mkt.priority === "Restricted" ? (
                     <p className="text-xs text-muted-foreground italic">
                       Market value not calculable — access restrictions apply.
@@ -387,10 +425,21 @@ export function ResultCard({ result }: ResultCardProps) {
                     </p>
                   )}
 
-                  {/* Rationale */}
-                  <p className="text-[11px] text-muted-foreground leading-relaxed mt-3 border-l border-primary/20 pl-2">
-                    {mkt.rationale}
-                  </p>
+                  {/* Rationale — also under unverified treatment */}
+                  {mkt.unverified ? (
+                    <div className="mt-3 border-l-2 border-red-600/40 pl-2 bg-red-600/5 p-2">
+                      <p className="text-[10px] font-mono uppercase tracking-wider text-red-400 mb-1">
+                        Unverified rationale (do not quote)
+                      </p>
+                      <p className="text-[11px] text-red-300/70 italic leading-relaxed">
+                        {mkt.rationale}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground leading-relaxed mt-3 border-l border-primary/20 pl-2">
+                      {mkt.rationale}
+                    </p>
+                  )}
                 </section>
 
                 <Separator className="bg-border" />

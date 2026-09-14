@@ -21,6 +21,7 @@ import correctionsRouter from "./corrections";
 import peopleRouter from "./people";
 import signalsRouter from "./signals";
 import snapshotsRouter from "./snapshots";
+import coverageRouter from "./coverage";
 import { isDemoMode } from "../../lib/store-factory";
 import { logger } from "../../lib/logger";
 
@@ -73,5 +74,6 @@ router.use(correctionsRouter);
 router.use(peopleRouter);
 router.use(signalsRouter);
 router.use(snapshotsRouter);
+router.use(coverageRouter);
 
 export default router;

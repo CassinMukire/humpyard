@@ -17,6 +17,7 @@ export * from "./orgs";
 export * from "./persons";
 export * from "./plays";
 export * from "./signals";
+export * from "./coverage";
 export * from "./corrections";
 export * from "./review-queue";
 export * from "./battle-cards";
