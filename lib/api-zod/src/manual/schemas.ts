@@ -21,7 +21,7 @@ export const ConfidenceSchema = z.enum(["V", "O", "I"]);
 export type Confidence = z.infer<typeof ConfidenceSchema>;
 
 export const VerifiedBySchema = z
-  .enum(["rule", "human", "human-import", "doc-import"])
+  .enum(["rule", "human", "human-import", "doc-import", "ai-draft"])
   .nullable();
 export type VerifiedBy = z.infer<typeof VerifiedBySchema>;
 
