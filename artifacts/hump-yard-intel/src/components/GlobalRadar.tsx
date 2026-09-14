@@ -220,20 +220,15 @@ export function GlobalRadar() {
                               <span className={`text-[9px] font-mono font-semibold ${mktCfg.color}`}>
                                 {mktCfg.label}
                               </span>
-                              {mkt.activeYards > 0 && (
-                                mkt.unverified ? (
-                                  <span
-                                    data-testid="global-radar-unverified"
-                                    className="text-[9px] font-mono text-red-400/80 line-through"
-                                    title="Unverified estimate — do not quote"
-                                  >
-                                    ⚠ ~{mkt.activeYards} yards (unverified)
-                                  </span>
-                                ) : (
-                                  <span className="text-[9px] font-mono opacity-60">
-                                    ~{mkt.activeYards} yards · {formatMSEK(mkt.potentialValueMaxMSEK)} max
-                                  </span>
-                                )
+                              {typeof mkt.activeYards === "number" && mkt.activeYards > 0 && (
+                                // VERIFIED path — SourcedFact-backed count.
+                                // Legacy MARKET_DATA entries no longer carry
+                                // this field (Hitank 2026-09-14: no mock,
+                                // no demo). The line below only appears when
+                                // buildVerifiedMarket() has wired real data.
+                                <span className="text-[9px] font-mono opacity-60">
+                                  {mkt.activeYards} yards · {formatMSEK(mkt.potentialValueMaxMSEK!)} max
+                                </span>
                               )}
                             </div>
                           )}
