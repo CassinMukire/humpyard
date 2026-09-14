@@ -31,7 +31,7 @@ import {
 const router = Router();
 
 // GET /api/v1/coverage — global ledger across all markets
-router.get("/", async (_req, res, next) => {
+router.get("/coverage", async (_req, res, next) => {
   try {
     const summaries = await listAllCoverage();
     res.json({ markets: summaries, count: summaries.length });
@@ -41,7 +41,7 @@ router.get("/", async (_req, res, next) => {
 });
 
 // GET /api/v1/coverage/:marketId — per-market summary + full audit trail
-router.get("/:marketId", async (req, res, next) => {
+router.get("/coverage/:marketId", async (req, res, next) => {
   try {
     const summary = await getCoverageSummary(req.params.marketId);
     res.json(summary);
@@ -61,7 +61,7 @@ const PostBody = z.object({
   notes: z.string().optional().nullable(),
   operator: z.string().optional().nullable(),
 });
-router.post("/", async (req, res, next) => {
+router.post("/coverage", async (req, res, next) => {
   try {
     const parsed = PostBody.safeParse(req.body);
     if (!parsed.success) {
