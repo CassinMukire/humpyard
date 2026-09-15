@@ -49,6 +49,13 @@ router.get("/system/info", (_req, res) => {
   const linkedInProvider = getLinkedInProvider();
   const proxycurlConfigured = linkedInProvider.isConfigured();
   const linkedinProviderName = linkedInProvider.name();
+  // v1.1.8 — surface Proxycurl's sunset state so the operator sees it
+  // immediately. Nubela sunset the API on 2025-07-04 after LinkedIn's
+  // lawsuit; the key still works to authenticate, but every call
+  // returns 410 API_SUNSET.
+  const linkedinProviderSunset = linkedInProvider.isSunset
+    ? linkedInProvider.isSunset()
+    : false;
   // Surface a startup-time error in the logs so an operator sees a
   // misconfiguration immediately, not silently.
   if (nodeEnv === "production" && (inMemory || authDisabled)) {
@@ -62,12 +69,13 @@ router.get("/system/info", (_req, res) => {
     auth_disabled: authDisabled,
     monday_configured: !!process.env["MONDAY_API_TOKEN"],
     monday_board_people_id: process.env["MONDAY_BOARD_PEOPLE_ID"] || null,
-    // v1.1.8 — these two now reflect the LIVE provider state, not just
+    // v1.1.8 — these reflect the LIVE provider state, not just
     // env-var presence. `proxycurl_configured` is true when the
-    // provider is wired; `linkedin_provider` reports which provider is
-    // actually in use ("proxycurl" or "manual-search").
+    // provider is wired AND not sunset; `linkedin_provider` reports
+    // which provider is in use ("proxycurl" or "manual-search").
     proxycurl_configured: proxycurlConfigured,
     linkedin_provider: linkedinProviderName,
+    linkedin_provider_sunset: linkedinProviderSunset,
     exa_configured: !!process.env["EXA_API_KEY"],
     openai_configured: !!process.env["OPENAI_API_KEY"],
     node_env: nodeEnv,

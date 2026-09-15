@@ -213,7 +213,8 @@ export async function enrichLinkedIn(
 export async function linkedInEnrichHealth(): Promise<{
   provider: "proxycurl" | "manual-search";
   configured: boolean;
-  mode: "auto" | "manual-search";
+  sunset: boolean;
+  mode: "auto" | "manual-search" | "sunset";
 }> {
   return customFetch("/api/v1/people/enrich/health");
 }

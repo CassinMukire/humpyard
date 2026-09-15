@@ -280,19 +280,22 @@ interface KeyContactsPanelProps {
 
 export function KeyContactsPanel({ result, defaultOpen = false }: KeyContactsPanelProps) {
   const [open, setOpen] = useState(defaultOpen);
-  const [proxycurlConfigured, setProxycurlConfigured] = useState(false);
+  const [enrichMode, setEnrichMode] = useState<"auto" | "manual-search" | "sunset">("manual-search");
   const contacts = result.keyContacts ?? [];
 
   // One-shot health check on mount: tells the UI whether to render the
   // Enrich UI (cost ~$0.04-0.10/call, so we gate it behind a real config).
+  // v1.1.8 — also detects "sunset" state. Proxycurl was shut down on
+  // 2025-07-04 (LinkedIn sued Nubela). The UI shows a clear message
+  // instead of letting the operator click into a dead API.
   useEffect(() => {
     let cancelled = false;
     linkedInEnrichHealth()
       .then((h) => {
-        if (!cancelled) setProxycurlConfigured(h.configured);
+        if (!cancelled) setEnrichMode(h.mode);
       })
       .catch(() => {
-        if (!cancelled) setProxycurlConfigured(false);
+        if (!cancelled) setEnrichMode("manual-search");
       });
     return () => {
       cancelled = true;
@@ -300,6 +303,7 @@ export function KeyContactsPanel({ result, defaultOpen = false }: KeyContactsPan
   }, []);
 
   if (contacts.length === 0) return null;
+  const proxycurlConfigured = enrichMode === "auto";
 
   return (
     <div className="border-t border-border">
@@ -334,6 +338,29 @@ export function KeyContactsPanel({ result, defaultOpen = false }: KeyContactsPan
 
       {open && (
         <div className="px-6 pb-5 space-y-4">
+
+          {/* v1.1.8 — Proxycurl sunset banner. Replaces the Enrich UI
+              with a clear operator-facing message: the API is dead,
+              switch providers or use manual search. Hidden when mode
+              is "auto" or "manual-search". */}
+          {enrichMode === "sunset" && (
+            <div
+              data-testid="linkedin-provider-sunset-banner"
+              className="border border-amber-600/50 bg-amber-600/10 p-3 space-y-1"
+            >
+              <p className="text-[11px] font-mono uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                LinkedIn enrichment provider is sunset
+              </p>
+              <p className="text-[11px] text-amber-300/80 font-mono leading-relaxed">
+                Proxycurl (Nubela) was shut down on 4 July 2025 after
+                LinkedIn's lawsuit. The auto-enrich button is disabled
+                until a replacement provider is wired. Use the
+                "Search LinkedIn" link to find contacts manually,
+                paste the URL back, and add interests by hand.
+              </p>
+            </div>
+          )}
 
           {/* Quick Role Searches — always shown, operator-targeted */}
           <div className="border border-border bg-background/20 p-3 space-y-2">

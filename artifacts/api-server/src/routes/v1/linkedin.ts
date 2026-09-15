@@ -47,10 +47,20 @@ const enrichLimiter = rateLimit({
 router.get("/people/enrich/health", (_req, res) => {
   const provider = getLinkedInProvider();
   const configured = provider.isConfigured();
+  const sunset = provider.isSunset ? provider.isSunset() : false;
+  // mode precedence: sunset > manual-search > auto. The UI checks
+  // sunset first so a dead provider doesn't burn requests and shows
+  // the operator a clear "switch providers" message.
+  const mode: "auto" | "manual-search" | "sunset" = sunset
+    ? "sunset"
+    : configured
+    ? "auto"
+    : "manual-search";
   res.json({
     provider: provider.name(),
     configured,
-    mode: configured ? "auto" : "manual-search",
+    sunset,
+    mode,
   });
 });
 
@@ -80,6 +90,23 @@ router.post(
         (req as unknown as { authUser?: string }).authUser ?? "unknown";
 
       if (!provider.isConfigured()) {
+        // v1.1.8 — distinguish "no key" (402 Payment Required) from
+        // "key present but API is sunset" (503 Service Unavailable).
+        // The UI handles both, but the operator needs to know which
+        // one to act on.
+        const sunset = provider.isSunset ? provider.isSunset() : false;
+        if (sunset) {
+          res.status(503).json({
+            error:
+              "LinkedIn enrichment provider is sunset. " +
+              "Proxycurl (Nubela) shut down on 2025-07-04. " +
+              "Switch to a different provider (Unipile, People Data Labs) or use manual search.",
+            provider: provider.name(),
+            configured: false,
+            sunset: true,
+          });
+          return;
+        }
         res.status(402).json({
           error:
             "LinkedIn enrichment is not configured. Set PROXYCURL_API_KEY on the server.",

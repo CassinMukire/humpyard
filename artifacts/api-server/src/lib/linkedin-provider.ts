@@ -49,6 +49,7 @@ export interface LinkedInEnrichment {
 
 export interface LinkedInProvider {
   isConfigured(): boolean;
+  isSunset?(): boolean;
   name(): string;
   enrichByName(name: string, org: string | null): Promise<LinkedInEnrichment | null>;
   enrichByProfile(profileUrl: string): Promise<LinkedInEnrichment>;

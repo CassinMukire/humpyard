@@ -138,8 +138,25 @@ function dateRangeLabel(
 }
 
 export class ProxycurlProvider implements LinkedInProvider {
+  // v1.1.8 — Proxycurl (Nubela) was SUNSET on 2025-07-04 after LinkedIn
+  // sued over fake-account scraping. The API returns 410 with
+  // { "code": "API_SUNSET" } forever. We track that state here so the
+  // UI doesn't keep trying to enrich via a dead service.
+  //
+  // The flip is one-way within a process lifetime: once we see a 410,
+  // we never call Proxycurl again until the container restarts. The
+  // UI hides the Enrich button on the next /health fetch.
+  private _sunsetDetected = false;
+
   isConfigured(): boolean {
+    // Even if the key is set, the provider is dead. Once sunset, it's
+    // not "configured" in the usable sense — UI should hide the button.
+    if (this._sunsetDetected) return false;
     return !!process.env["PROXYCURL_API_KEY"];
+  }
+
+  isSunset(): boolean {
+    return this._sunsetDetected;
   }
 
   name(): string {
@@ -161,8 +178,20 @@ export class ProxycurlProvider implements LinkedInProvider {
    * (profile + derived interests) or throws on hard failure.
    *
    * Cost: 1 Proxycurl credit (~$0.04–0.10). Logged on every call.
+   *
+   * v1.1.8 — once a 410 API_SUNSET response is observed, the provider
+   * remembers it for the rest of the process lifetime. The /health
+   * endpoint reports `sunset: true` and `configured: false`, and the
+   * UI hides the Enrich button. No more calls are made.
    */
   async enrichByProfile(profileUrl: string): Promise<LinkedInEnrichment> {
+    if (this._sunsetDetected) {
+      throw new Error(
+        "Proxycurl was sunset on 2025-07-04 (LinkedIn sued Nubela). " +
+          "Switch to a different provider (e.g. Unipile, People Data Labs) " +
+          "or fall back to manual search.",
+      );
+    }
     const url = canonicaliseLinkedInUrl(profileUrl);
     if (!url) {
       throw new Error(
@@ -206,6 +235,16 @@ export class ProxycurlProvider implements LinkedInProvider {
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => "");
+      // v1.1.8 — detect Proxycurl's sunset signal and lock it out.
+      // The API returns 410 with body containing "API_SUNSET".
+      if (resp.status === 410 || text.includes("API_SUNSET") || text.includes("sunset")) {
+        this._sunsetDetected = true;
+        throw new Error(
+          "Proxycurl was sunset on 2025-07-04 (LinkedIn sued Nubela). " +
+            "Switch to a different provider (e.g. Unipile, People Data Labs) " +
+            "or fall back to manual search.",
+        );
+      }
       // Proxycurl returns 404 when the profile doesn't exist or isn't public.
       if (resp.status === 404) {
         throw new Error(
