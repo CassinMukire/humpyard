@@ -151,12 +151,71 @@ export async function patchPerson(
 
 /**
  * Build the LinkedIn people-search URL the operator clicks to find a
- * person manually. Per F3: no API enrichment. The UI opens this in a
- * new tab, the operator pastes back the URL they found.
+ * person manually. Used when Proxycurl isn't configured or as a fallback
+ * to verify a match before enriching. UI opens this in a new tab;
+ * operator pastes back the URL they found.
  */
 export function linkedInSearchUrl(name: string, org: string | null): string {
   const keywords = [name, org].filter(Boolean).join(" ");
   return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(keywords)}`;
+}
+
+// -----------------------------------------------------------------------------
+// LinkedIn enrichment — v1.1.8 (LIVE per Cassin 2026-09-15)
+//
+// Calls the server endpoint, which calls Proxycurl (~0.04-0.10 USD/lookup),
+// projects the response into PersonInterest[], and (optionally) persists
+// the interests onto a person record.
+//
+// §12.5.2 — the server logs each call to the corrections table (action =
+// "enrich"). The UI does not need to do any audit work.
+// -----------------------------------------------------------------------------
+
+export type LinkedInInterestKind =
+  | "role_change"
+  | "project"
+  | "public_statement"
+  | "conference"
+  | "publication"
+  | "other";
+
+export interface LinkedInEnrichment {
+  profile: {
+    name: string;
+    role: string | null;
+    org: string | null;
+    profileUrl: string;
+  };
+  interests: Array<{
+    kind: LinkedInInterestKind;
+    summary: string;
+    sourceUrl: string;
+    retrievedAt: string;
+  }>;
+}
+
+export interface LinkedInEnrichResponse {
+  enrichment: LinkedInEnrichment;
+  /** true if the interests were persisted to the person record. */
+  persisted: boolean;
+  provider: "proxycurl" | "manual-search";
+}
+
+export async function enrichLinkedIn(
+  body: { linkedin_url: string; person_id?: string; role?: string },
+): Promise<LinkedInEnrichResponse> {
+  return customFetch<LinkedInEnrichResponse>("/api/v1/people/enrich", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function linkedInEnrichHealth(): Promise<{
+  provider: "proxycurl" | "manual-search";
+  configured: boolean;
+  mode: "auto" | "manual-search";
+}> {
+  return customFetch("/api/v1/people/enrich/health");
 }
 
 // -----------------------------------------------------------------------------

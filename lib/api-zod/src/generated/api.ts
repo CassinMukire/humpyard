@@ -56,7 +56,7 @@ export const SearchCountryResponse = zod.object({
       "source_url": zod.string(),
       "retrieved_at": zod.string(),
       "confidence": zod.enum(['V', 'O', 'I']),
-      "verified_by": zod.enum(['rule', 'human', 'human-import', 'doc-import']).nullable()
+      "verified_by": zod.enum(['rule', 'human', 'human-import', 'doc-import', 'ai-draft', 'proxycurl']).nullable()
     })
   })).optional().describe('Topics of interest — populated by LinkedIn enrichment (Cassin correction 2026-08-22)')
 })).describe('Structured key contacts with LinkedIn URLs'),

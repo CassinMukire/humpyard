@@ -23,6 +23,7 @@ import signalsRouter from "./signals";
 import snapshotsRouter from "./snapshots";
 import coverageRouter from "./coverage";
 import { isDemoMode } from "../../lib/store-factory";
+import { getLinkedInProvider } from "../../lib/linkedin-provider";
 import { logger } from "../../lib/logger";
 
 const router = Router();
@@ -42,6 +43,12 @@ router.get("/system/info", (_req, res) => {
   const inMemory = isDemoMode();
   const authDisabled = process.env["DISABLE_AUTH"] === "true";
   const nodeEnv = process.env["NODE_ENV"] ?? "development";
+  // v1.1.8 — surface whether the LinkedIn provider is actually wired
+  // (not just whether the env var is set). getLinkedInProvider() picks
+  // Proxycurl when PROXYCURL_API_KEY is present, NoOp otherwise.
+  const linkedInProvider = getLinkedInProvider();
+  const proxycurlConfigured = linkedInProvider.isConfigured();
+  const linkedinProviderName = linkedInProvider.name();
   // Surface a startup-time error in the logs so an operator sees a
   // misconfiguration immediately, not silently.
   if (nodeEnv === "production" && (inMemory || authDisabled)) {
@@ -55,7 +62,12 @@ router.get("/system/info", (_req, res) => {
     auth_disabled: authDisabled,
     monday_configured: !!process.env["MONDAY_API_TOKEN"],
     monday_board_people_id: process.env["MONDAY_BOARD_PEOPLE_ID"] || null,
-    proxycurl_configured: !!process.env["PROXYCURL_API_KEY"],
+    // v1.1.8 — these two now reflect the LIVE provider state, not just
+    // env-var presence. `proxycurl_configured` is true when the
+    // provider is wired; `linkedin_provider` reports which provider is
+    // actually in use ("proxycurl" or "manual-search").
+    proxycurl_configured: proxycurlConfigured,
+    linkedin_provider: linkedinProviderName,
     exa_configured: !!process.env["EXA_API_KEY"],
     openai_configured: !!process.env["OPENAI_API_KEY"],
     node_env: nodeEnv,

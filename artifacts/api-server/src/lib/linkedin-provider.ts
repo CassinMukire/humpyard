@@ -1,28 +1,30 @@
 // =============================================================================
-// LinkedIn enrichment provider — DISABLED per Cassin's v1.6 brief F3
+// LinkedIn enrichment provider — v1.1.8 (LIVE per Cassin 2026-09-15)
 //
-// "Replace the Proxycurl call — the button stays, but it must work: the
-//  LinkedIn button opens a LinkedIn people search (name + org) in a new
-//  tab; the person record gets a manual `linkedin_url` field the operator
-//  pastes after looking. No scraping, no enrichment, no stored data
-//  beyond the pasted URL. §12.5.5 unchanged."
+// History:
+//   v1.0 — F3 brief (2026-09-01): NoOpProvider. Operator opens LinkedIn
+//          search URL in a new tab, pastes back the URL.
+//   v1.1.8 — Cassin re-enabled auto-enrichment: "I need that one to work
+//            properly that is why." Wired ProxycurlProvider when
+//            PROXYCURL_API_KEY is set. NoOpProvider remains as fallback.
 //
-// The provider is kept as a stub so the rest of the codebase compiles
-// without changes. enrichByName / enrichByProfile always return null
-// (no interests, no profile data) — the UI is the only place the
-// LinkedIn search + paste flow is implemented.
+// Contract:
+//   - LinkedInProvider interface (stable; route handlers don't change).
+//   - `getLinkedInProvider()` returns the right one per env state.
+//   - `buildLinkedInSearchUrl` is still exported for the manual-search
+//     UI (used in tandem with Enrich when Proxycurl isn't configured).
 //
-// To re-enable any provider in the future:
-//   1. Implement enrichByName + enrichByProfile
-//   2. Wire the route to call the provider
-//   3. Update the UI to show "Enrich" instead of "Search LinkedIn"
-//
-// The contract: a LinkedInProvider that does nothing is still a
-// LinkedInProvider. v1 ships with no API calls. v2 (P2) may add a
-// provider back if Cassin changes his mind.
+// GDPR (§12.5.2):
+//   - Only public-profile data is fetched. Proxycurl refuses non-public
+//     profiles at the API level.
+//   - Subjects are business contacts on public LinkedIn pages. Cassin
+//     has the lawful basis (legitimate interest, Art. 6(1)(f)).
+//   - Every enrichment call is logged to the `corrections` table by the
+//     route handler — see artifacts/api-server/src/routes/v1/people.ts.
 // =============================================================================
 
 import { createHash } from "node:crypto";
+import { ProxycurlProvider } from "./proxycurl-provider";
 
 // =============================================================================
 // Type contracts (kept stable so route handlers don't change)
@@ -53,48 +55,54 @@ export interface LinkedInProvider {
 }
 
 // =============================================================================
-// Disabled provider (v1)
+// NoOpProvider — fallback when PROXYCURL_API_KEY is not set
 // =============================================================================
 
 class NoOpProvider implements LinkedInProvider {
   isConfigured(): boolean {
-    // No external provider is configured in v1. The UI does the search
-    // via a direct link to linkedin.com/search/results/people/, and the
-    // operator pastes back the URL they found.
     return false;
   }
   name(): string {
     return "manual-search";
   }
   async enrichByName(_name: string, _org: string | null): Promise<LinkedInEnrichment | null> {
-    // F3: no enrichment API. The UI opens a LinkedIn search URL in a new
-    // tab. The operator pastes back the LinkedIn URL they found into
-    // `person.manual_linkedin_url`.
     return null;
   }
   async enrichByProfile(_profileUrl: string): Promise<LinkedInEnrichment> {
-    // F3: no enrichment API. Same as enrichByName — return empty interests.
-    return {
-      profile: { name: "", role: null, org: null, profileUrl: _profileUrl },
-      interests: [],
-    };
+    throw new Error(
+      "LinkedIn enrichment is not configured on this server. " +
+        "Set PROXYCURL_API_KEY in the server env to enable Proxycurl. " +
+        "Without it, paste the URL into the manual field instead.",
+    );
   }
 }
 
 // =============================================================================
-// Provider selection
+// Provider selection — picks Proxycurl when key is set, else NoOp
 // =============================================================================
 
 let _provider: LinkedInProvider | null = null;
 
 export function getLinkedInProvider(): LinkedInProvider {
   if (_provider) return _provider;
-  _provider = new NoOpProvider();
+  if (process.env["PROXYCURL_API_KEY"]) {
+    _provider = new ProxycurlProvider();
+  } else {
+    _provider = new NoOpProvider();
+  }
   return _provider;
 }
 
+/**
+ * Reset the cached provider. Tests + config changes that flip
+ * PROXYCURL_API_KEY at runtime need this. Not used by route handlers.
+ */
+export function resetLinkedInProvider(): void {
+  _provider = null;
+}
+
 // =============================================================================
-// Helpers (kept for forward-compat with a future P2 provider)
+// Helpers (used by the UI + audit code)
 // =============================================================================
 
 /**
@@ -114,13 +122,8 @@ export function contentHash(value: string): string {
 
 /**
  * Build a LinkedIn people-search URL for a given name + org. The UI uses
- * this on the person-detail page (F3): the "Search LinkedIn" button is
- * just an `<a href={url} target="_blank">` with this URL.
- *
- * The search form (linkedin.com/search/results/people/?keywords=...) does
- * NOT require auth for a basic name+org lookup. The operator clicks
- * through, finds the real profile, and pastes the URL back into
- * `person.manual_linkedin_url`.
+ * this on the person-detail page when Proxycurl is OFF or the operator
+ * wants to verify the match manually.
  */
 export function buildLinkedInSearchUrl(name: string, org: string | null): string {
   const keywords = [name, org].filter(Boolean).join(" ");

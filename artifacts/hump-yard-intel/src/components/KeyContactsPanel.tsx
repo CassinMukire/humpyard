@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { CountryResult, KeyContact, PersonInterest } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,16 @@ import {
   AlertTriangle,
   Users,
   ExternalLink,
+  Sparkles,
+  X,
+  Loader2,
 } from "lucide-react";
+import {
+  enrichLinkedIn,
+  linkedInEnrichHealth,
+  type LinkedInInterestKind,
+  type LinkedInEnrichment,
+} from "@/lib/v1-api";
 
 // The 5 decision-maker roles that matter for hump retarder procurement
 // 1. Asset owner (controls capex)  2. Procurement (runs tender)  3. Engineering (writes spec)
@@ -101,12 +110,18 @@ function ContactCard({
   contact,
   country,
   yards,
+  proxycurlConfigured,
 }: {
   contact: KeyContact;
   country: string;
   yards: string[];
+  proxycurlConfigured: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  const [enrichUrl, setEnrichUrl] = useState("");
+  const [enrichResult, setEnrichResult] = useState<LinkedInEnrichment | null>(null);
+  const [enrichError, setEnrichError] = useState<string | null>(null);
+  const [enrichLoading, setEnrichLoading] = useState(false);
 
   const handleCopyLinkedIn = () => {
     navigator.clipboard.writeText(contact.linkedinUrl).then(() => {
@@ -114,6 +129,46 @@ function ContactCard({
       setTimeout(() => setCopied(false), 2000);
     });
   };
+
+  const handleEnrich = async () => {
+    setEnrichError(null);
+    setEnrichResult(null);
+    const url = enrichUrl.trim() || contact.linkedinUrl;
+    setEnrichLoading(true);
+    try {
+      const resp = await enrichLinkedIn({
+        linkedin_url: url,
+        role: contact.title,
+      });
+      setEnrichResult(resp.enrichment);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setEnrichError(msg);
+    } finally {
+      setEnrichLoading(false);
+    }
+  };
+
+  // Merge the AI-derived interests (from search) with the operator-derived
+  // interests (from enrich). Both render below as the "Topics to talk about"
+  // list. Key by source_url to avoid dupes.
+  const mergedInterests: PersonInterest[] = [
+    ...(contact.interests ?? []),
+    ...(enrichResult?.interests ?? []).map((i) => ({
+      kind: i.kind as LinkedInInterestKind,
+      summary: `[${contact.title ?? "contact"}] ${i.summary}`,
+      fact: {
+        value: i.summary,
+        source_url: i.sourceUrl,
+        retrieved_at: i.retrievedAt,
+        confidence: "O" as const,
+        verified_by: "proxycurl" as const,
+      },
+    })),
+  ];
+  const dedupedInterests = Array.from(
+    new Map(mergedInterests.map((i) => [i.fact.source_url, i])).values(),
+  );
 
   return (
     <div className="border border-border bg-background/40 p-4 space-y-3">
@@ -136,15 +191,62 @@ function ContactCard({
         {contact.whyRelevant}
       </p>
 
-      {/* Topics of interest (per Cassin's correction, 2026-08-22) */}
-      {contact.interests && contact.interests.length > 0 && (
+      {/* Topics of interest — search-result + Proxycurl enrichment, deduped */}
+      {dedupedInterests.length > 0 && (
         <div className="space-y-1.5 pt-1">
           <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
             Topics to talk about
           </p>
-          {contact.interests.map((i, idx) => (
+          {dedupedInterests.map((i, idx) => (
             <InterestRow key={`${i.fact.source_url}-${idx}`} interest={i} />
           ))}
+        </div>
+      )}
+
+      {/* LinkedIn enrichment — paste a real profile URL, hit Enrich */}
+      {proxycurlConfigured && (
+        <div className="space-y-2 border border-border/50 bg-background/30 p-2">
+          <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+            Auto-enrich via Proxycurl
+            <span className="ml-1 normal-case text-muted-foreground/60">
+              (~0.04–0.10 USD / lookup)
+            </span>
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <input
+              type="url"
+              value={enrichUrl}
+              onChange={(e) => setEnrichUrl(e.target.value)}
+              placeholder="https://www.linkedin.com/in/<slug>"
+              className="flex-1 min-w-0 bg-background border border-border text-xs font-mono px-2 py-1 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/60"
+              data-testid={`enrich-url-${contact.title ?? "x"}`}
+            />
+            <button
+              onClick={handleEnrich}
+              disabled={enrichLoading}
+              className="inline-flex items-center gap-1.5 text-xs font-mono px-2 py-1 border border-purple-600/50 text-purple-300 hover:bg-purple-600/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              data-testid={`enrich-btn-${contact.title ?? "x"}`}
+            >
+              {enrichLoading ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Sparkles className="w-3 h-3" />
+              )}
+              {enrichLoading ? "Enriching…" : "Enrich"}
+            </button>
+          </div>
+          {enrichError && (
+            <p className="text-[11px] text-red-400 font-mono flex items-start gap-1.5">
+              <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+              <span>{enrichError}</span>
+            </p>
+          )}
+          {enrichResult && enrichResult.interests.length === 0 && (
+            <p className="text-[11px] text-amber-400 font-mono">
+              No interests extracted — profile is public but has no
+              activities / articles / events to summarise.
+            </p>
+          )}
         </div>
       )}
 
@@ -178,7 +280,24 @@ interface KeyContactsPanelProps {
 
 export function KeyContactsPanel({ result, defaultOpen = false }: KeyContactsPanelProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const [proxycurlConfigured, setProxycurlConfigured] = useState(false);
   const contacts = result.keyContacts ?? [];
+
+  // One-shot health check on mount: tells the UI whether to render the
+  // Enrich UI (cost ~$0.04-0.10/call, so we gate it behind a real config).
+  useEffect(() => {
+    let cancelled = false;
+    linkedInEnrichHealth()
+      .then((h) => {
+        if (!cancelled) setProxycurlConfigured(h.configured);
+      })
+      .catch(() => {
+        if (!cancelled) setProxycurlConfigured(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (contacts.length === 0) return null;
 
@@ -250,6 +369,7 @@ export function KeyContactsPanel({ result, defaultOpen = false }: KeyContactsPan
                 contact={contact}
                 country={result.country}
                 yards={result.yards}
+                proxycurlConfigured={proxycurlConfigured}
               />
             ))}
           </div>

@@ -66,10 +66,13 @@ export const playStatusEnum = pgEnum("play_status", [
 ]);
 
 // Correction action
+// v1.1.8 — added "enrich" for the LinkedIn enrichment audit trail
+// (§12.5.2). Every Proxycurl call logs a row with action = "enrich".
 export const correctionActionEnum = pgEnum("correction_action", [
   "confirm",
   "reject",
   "edit",
+  "enrich",
 ]);
 
 // Fact kind (which entity a Correction refers to)

@@ -21,7 +21,9 @@ export const ConfidenceSchema = z.enum(["V", "O", "I"]);
 export type Confidence = z.infer<typeof ConfidenceSchema>;
 
 export const VerifiedBySchema = z
-  .enum(["rule", "human", "human-import", "doc-import", "ai-draft"])
+  // v1.1.8 — added "proxycurl" for LinkedIn enrichment facts. Each Proxycurl-
+  // derived interest gets verified_by = "proxycurl" + confidence = "O".
+  .enum(["rule", "human", "human-import", "doc-import", "ai-draft", "proxycurl"])
   .nullable();
 export type VerifiedBy = z.infer<typeof VerifiedBySchema>;
 
@@ -325,7 +327,7 @@ export type Play = z.infer<typeof PlaySchema>;
 // Correction — the apprentice-loop log (§1.3)
 // -----------------------------------------------------------------------------
 
-export const CorrectionActionSchema = z.enum(["confirm", "reject", "edit"]);
+export const CorrectionActionSchema = z.enum(["confirm", "reject", "edit", "enrich"]);
 export type CorrectionAction = z.infer<typeof CorrectionActionSchema>;
 
 export const CorrectionSchema = z.object({
