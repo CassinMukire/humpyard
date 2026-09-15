@@ -14,7 +14,7 @@ import { Play, Square, Download, Activity, Radar, HelpCircle } from "lucide-reac
 import { exportToCsv } from "@/lib/csv";
 import { ResultCard } from "./ResultCard";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { getMarketOpportunity, PRIORITY_CONFIG, formatMSEK } from "@/lib/marketData";
+import { getMarketOpportunity, MARKET_CLASS_CONFIG, formatMSEK } from "@/lib/marketData";
 
 const TIER_DEFINITIONS = {
   A: {
@@ -204,7 +204,12 @@ export function GlobalRadar() {
               <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
                 {tierResults.map((res, i) => {
                   const mkt = getMarketOpportunity(res.country);
-                  const mktCfg = mkt ? PRIORITY_CONFIG[mkt.priority] : null;
+                  // v1.1.7 — Cassin: replace priority badge with market_class
+                  // badge. Hidden when market_class === "unverified".
+                  const classCfg =
+                    mkt && mkt.market_class !== "unverified"
+                      ? MARKET_CLASS_CONFIG[mkt.market_class]
+                      : null;
                   return (
                     <Dialog key={i}>
                       <DialogTrigger asChild>
@@ -215,10 +220,13 @@ export function GlobalRadar() {
                             <span className="truncate">{res.country}</span>
                             <span className="text-xs font-mono opacity-70">{res.verdict}</span>
                           </div>
-                          {mkt && mktCfg && (
+                          {mkt && classCfg && (
                             <div className="flex items-center justify-between mt-1 gap-1">
-                              <span className={`text-[9px] font-mono font-semibold ${mktCfg.color}`}>
-                                {mktCfg.label}
+                              <span
+                                data-testid="global-radar-market-class"
+                                className={`text-[9px] font-mono font-semibold ${classCfg.color}`}
+                              >
+                                {classCfg.label}
                               </span>
                               {typeof mkt.activeYards === "number" && mkt.activeYards > 0 && (
                                 // VERIFIED path — SourcedFact-backed count.

@@ -835,11 +835,11 @@ export default function DossierDetail() {
                   ⚠ Unwatched — no source configured
                 </p>
                 <p className="text-[11px] text-red-300/80 font-mono leading-relaxed mt-2">
-                  Nothing has been checked for this market. The dossier below
-                  may be empty or unverified. Add a coverage entry with{" "}
-                  <code className="bg-background px-1 text-[10px]">POST /api/v1/coverage</code>{" "}
-                  (status=checked, no_results, error, or manual_confirmed) and
-                  it will appear here.
+                  No source has been checked for this market. The dossier
+                  below may be empty or unverified — do not quote anything
+                  from it on the floor until a coverage entry exists. Run
+                  the radar on this country, or flag a source manually,
+                  and the unwatched state will clear.
                 </p>
               </div>
             ) : (

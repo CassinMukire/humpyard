@@ -30,6 +30,19 @@
 export type MarketPriority = "Strategic" | "High" | "Medium" | "Watch" | "Restricted";
 export type MarketReadiness = "High" | "Medium" | "Low" | "Restricted";
 
+/**
+ * v1.1.7 — Cassin's market classification (replaces the legacy priority badge
+ * for the operator-facing country card).
+ *
+ * Per Cassin 2026-09-15 review:
+ *   - Target:        active BD target markets where DECEL is written into specs.
+ *   - Installed base: existing DECEL reference markets — upgrade cycle only.
+ *   - Closed:         markets DECEL is NOT pursuing (closed, sanctioned, or
+ *                    decided against for documented reasons).
+ *   - Unverified:     not yet classified. UI hides the badge entirely.
+ */
+export type MarketClass = "target" | "installed_base" | "closed" | "unverified";
+
 export interface MarketOpportunity {
   /**
    * Active hump yards — OPTIONAL. ONLY set when a real SourcedFact-backed
@@ -43,8 +56,14 @@ export interface MarketOpportunity {
   potentialValueMaxMSEK?: number;
   /** Operator's read on the procurement accessibility. Not a data claim. */
   readiness: MarketReadiness;
-  /** Operator's priority tier. Not a data claim. */
+  /** Operator's priority tier. Not a data claim. Kept for legacy; UI now shows
+   *  `market_class` instead per Cassin's v1.1.7 review. */
   priority: MarketPriority;
+  /** v1.1.7 — operator's market classification. When "unverified", the UI
+   *  hides the badge entirely (per Cassin: "hide the priority badges until
+   *  we have market classes"). When target/installed_base/closed, the UI
+   *  renders a badge with the label below. */
+  market_class: MarketClass;
   /** Commentary — not a number, not a sourced fact. */
   rationale: string;
 }
@@ -56,14 +75,33 @@ function decision(
   readiness: MarketReadiness,
   priority: MarketPriority,
   rationale: string,
+  market_class: MarketClass = "unverified",
 ): MarketOpportunity {
   // Deliberately NO activeYards / value fields. The operator can fill
   // these in later via buildVerifiedMarket() once a SourcedFact is wired.
   return {
     readiness,
     priority,
+    market_class,
     rationale,
   };
+}
+
+/**
+ * v1.1.7 — Cassin's market_class assignments (the 9 countries she named).
+ * Everything else defaults to "unverified" and the UI hides the badge.
+ * Per Cassin 2026-09-15:
+ *   Target         = Poland, Austria
+ *   Installed base = Finland, Sweden
+ *   Closed         = Hungary, Turkey, Italy, Norway
+ *   Unverified     = everything else (no badge in UI)
+ *
+ * UK has zero hump yards (Kijfhoek finished 2025) → unverified.
+ */
+function withClass(country: string, mc: MarketClass) {
+  const existing = MARKET_DATA[country];
+  if (!existing) return;
+  MARKET_DATA[country] = { ...existing, market_class: mc };
 }
 
 /**
@@ -182,6 +220,31 @@ export const MARKET_DATA: Record<string, MarketOpportunity> = {
     "Market is inaccessible due to international sanctions (no yard count claimed)."),
 };
 
+// -----------------------------------------------------------------------------
+// v1.1.7 — apply Cassin's market_class assignments.
+// Per Cassin 2026-09-15 review of the country table:
+//   Target         = Poland, Austria            (active BD targets)
+//   Installed base = Finland, Sweden            (existing reference markets)
+//   Closed         = Hungary, Turkey, Italy,    (decided against / closed)
+//                    Norway
+//   Unverified     = everything else            (no badge in UI)
+//
+// Note: UK has zero hump yards (Kijfhoek finished 2025) — stays unverified.
+// -----------------------------------------------------------------------------
+withClass("Poland", "target");
+withClass("Austria", "target");
+
+withClass("Finland", "installed_base");
+withClass("Sweden", "installed_base");
+
+withClass("Hungary", "closed");
+withClass("Turkey", "closed");
+withClass("Italy", "closed");
+withClass("Norway", "closed");
+
+// All 41 other countries remain market_class = "unverified" (default).
+// UI hides the badge for them.
+
 /** Lookup the operator-decision entry. UI must check whether activeYards is present. */
 export function getMarketOpportunity(country: string): MarketOpportunity | null {
   return MARKET_DATA[country] ?? null;
@@ -207,6 +270,7 @@ export function buildVerifiedMarket(
     potentialValueMaxMSEK: activeYards * PER_YARD_MAX,
     readiness: "High",
     priority: "Medium",
+    market_class: "target", // SourcedFact-backed count = a target we act on
     rationale,
   };
 }
@@ -260,3 +324,39 @@ export function formatMSEK(value: number): string {
   if (value >= 1000) return `${(value / 1000).toFixed(1)} BSEK`;
   return `${value.toLocaleString()} MSEK`;
 }
+
+// -----------------------------------------------------------------------------
+// v1.1.7 — Market class badge config (replaces priority badge in the UI).
+//
+// Cassin's rule (2026-09-15): only render a badge when market_class ∈
+// {target, installed_base, closed}. For "unverified", render nothing.
+// -----------------------------------------------------------------------------
+export const MARKET_CLASS_CONFIG: Record<Exclude<MarketClass, "unverified">, {
+  label: string;
+  color: string;
+  bg: string;
+  border: string;
+  description: string;
+}> = {
+  target: {
+    label: "Target",
+    color: "text-green-400",
+    bg: "bg-green-500/10",
+    border: "border-green-500/50",
+    description: "Active BD target — DECEL is being written into specs.",
+  },
+  installed_base: {
+    label: "Installed base",
+    color: "text-blue-400",
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/50",
+    description: "Existing DECEL reference market — upgrade cycle only.",
+  },
+  closed: {
+    label: "Closed",
+    color: "text-slate-400",
+    bg: "bg-slate-500/20",
+    border: "border-slate-500/40",
+    description: "Not pursuing — closed, sanctioned, or decided against.",
+  },
+};

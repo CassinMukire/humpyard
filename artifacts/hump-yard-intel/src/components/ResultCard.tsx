@@ -15,7 +15,7 @@ import {
 import { exportToCsv } from "@/lib/csv";
 import { saveRadarToDossier } from "@/lib/v1-api";
 import { KeyContactsPanel } from "./KeyContactsPanel";
-import { getMarketOpportunity, PRIORITY_CONFIG, formatMSEK } from "@/lib/marketData";
+import { getMarketOpportunity, MARKET_CLASS_CONFIG, formatMSEK } from "@/lib/marketData";
 import {
   Download,
   AlertTriangle,
@@ -327,7 +327,14 @@ export function ResultCard({ result }: ResultCardProps) {
           {(() => {
             const mkt = getMarketOpportunity(result.country);
             if (!mkt) return null;
-            const cfg = PRIORITY_CONFIG[mkt.priority];
+            // v1.1.7 — Cassin's review: replace the legacy priority badge
+            // with a market_class badge. For "unverified", render nothing.
+            // For target / installed_base / closed, render the badge with
+            // MARKET_CLASS_CONFIG styling.
+            const classCfg =
+              mkt.market_class !== "unverified"
+                ? MARKET_CLASS_CONFIG[mkt.market_class]
+                : null;
             // Hitank 2026-09-14: "i dont want any mock thing on project and dont
             // add demo related work". The legacy MARKET_DATA entries have NO
             // activeYards / value — those were all deleted in v1.1.5. The
@@ -342,12 +349,19 @@ export function ResultCard({ result }: ResultCardProps) {
                     <TrendingUp className="w-3.5 h-3.5" /> Market Opportunity
                   </h3>
 
-                  {/* Priority badge — operator decision, not a data claim */}
-                  <div className={`inline-flex items-center gap-1.5 px-2 py-1 border text-xs font-mono font-semibold mb-3 ${cfg.bg} ${cfg.border} ${cfg.color}`}>
-                    {mkt.priority === "Restricted" && <Lock className="w-3 h-3" />}
-                    {mkt.priority !== "Restricted" && <Building2 className="w-3 h-3" />}
-                    {cfg.label} Priority
-                  </div>
+                  {/* v1.1.7 — Market class badge (replaces priority badge).
+                      Hidden when market_class === "unverified" per Cassin's
+                      2026-09-15 rule. */}
+                  {classCfg ? (
+                    <div
+                      data-testid="market-class-badge"
+                      title={classCfg.description}
+                      className={`inline-flex items-center gap-1.5 px-2 py-1 border text-xs font-mono font-semibold mb-3 ${classCfg.bg} ${classCfg.border} ${classCfg.color}`}
+                    >
+                      <Building2 className="w-3 h-3" />
+                      {classCfg.label}
+                    </div>
+                  ) : null}
 
                   {hasYardCount ? (
                     // VERIFIED path — SourcedFact-backed (Phase 1 #4 wired this)
